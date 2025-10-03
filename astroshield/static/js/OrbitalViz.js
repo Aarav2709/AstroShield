@@ -1,4 +1,4 @@
-/* global THREE */
+import * as THREE from '../vendor/three.module.js';
 
 const SCALE_FACTOR = 1 / 250000; // Compress kilometre coordinates into scene units
 
