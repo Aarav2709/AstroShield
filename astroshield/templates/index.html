@@ -61,8 +61,6 @@
                                 <span class="label">Miss Distance</span>
                                 <strong id="neo-moid">—</strong>
                             </div>
-                            <div class="neo-summary__badge" id="neo-hazard">Monitoring</div>
-                            <a id="neo-link" class="neo-link" href="#" target="_blank" rel="noopener" hidden>View NASA record</a>
                         </div>
                     </div>
 
@@ -149,7 +147,7 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" referrerpolicy="no-referrer"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.161.0/three.min.js" referrerpolicy="no-referrer"></script>
+    <script src="{{ url_for('static', filename='vendor/three.min.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/TextPlugin.min.js" referrerpolicy="no-referrer"></script>
 

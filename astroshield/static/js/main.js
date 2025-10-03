@@ -22,9 +22,7 @@ const neoDesignationEl = document.getElementById('neo-designation');
 const neoVelocityEl = document.getElementById('neo-velocity');
 const neoDiameterEl = document.getElementById('neo-diameter');
 const neoMagnitudeEl = document.getElementById('neo-magnitude');
-const neoHazardBadge = document.getElementById('neo-hazard');
 const neoMoidEl = document.getElementById('neo-moid');
-const neoLinkEl = document.getElementById('neo-link');
 
 const diameterInput = document.getElementById('diameter_m');
 const velocityInput = document.getElementById('velocity_kms');
@@ -212,24 +210,6 @@ function renderNeoOverview(neo) {
         ? `${Number(neo.close_approach.miss_distance_km).toLocaleString()} km`
         : '—';
 
-    const hazard = Boolean(neo.is_potentially_hazardous);
-    neoHazardBadge.textContent = hazard ? 'Hazardous' : 'Monitored';
-    neoHazardBadge.classList.toggle('hazard', hazard);
-    neoHazardBadge.classList.toggle('monitored', !hazard);
-    neoHazardBadge.dataset.source = neo.source || 'mock';
-    neoHazardBadge.title = neo.source === 'nasa'
-        ? 'Live data from NASA NeoWs'
-        : 'Reference profile (offline fallback)';
-
-    if (neoLinkEl) {
-        if (neo.nasa_jpl_url) {
-            neoLinkEl.href = neo.nasa_jpl_url;
-            neoLinkEl.hidden = false;
-        } else {
-            neoLinkEl.hidden = true;
-            neoLinkEl.removeAttribute('href');
-        }
-    }
 }
 
 function renderEnvironment(environment) {
