@@ -33,6 +33,41 @@
                 <h2>Mission Control</h2>
                 <form id="impact-form">
                     <div class="control-group">
+                        <label for="asteroid-select">Asteroid Profile</label>
+                        <select id="asteroid-select" name="asteroid_id" aria-label="Select near-Earth object">
+                            <option value="Impactor-2025">Loading catalog…</option>
+                        </select>
+                        <div class="neo-summary">
+                            <div class="neo-summary__item">
+                                <span class="label">Name</span>
+                                <strong id="neo-name">—</strong>
+                            </div>
+                            <div class="neo-summary__item">
+                                <span class="label">Designation</span>
+                                <strong id="neo-designation">—</strong>
+                            </div>
+                            <div class="neo-summary__item">
+                                <span class="label">Velocity</span>
+                                <strong id="neo-velocity">—</strong>
+                            </div>
+                            <div class="neo-summary__item">
+                                <span class="label">Diameter</span>
+                                <strong id="neo-diameter">—</strong>
+                            </div>
+                            <div class="neo-summary__item">
+                                <span class="label">Abs. Magnitude</span>
+                                <strong id="neo-magnitude">—</strong>
+                            </div>
+                            <div class="neo-summary__item">
+                                <span class="label">Miss Distance</span>
+                                <strong id="neo-moid">—</strong>
+                            </div>
+                            <div class="neo-summary__badge" id="neo-hazard">Monitoring</div>
+                            <a id="neo-link" class="neo-link" href="#" target="_blank" rel="noopener" hidden>View NASA record</a>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
                         <div class="slider-row">
                             <label for="diameter_m">Asteroid Diameter (m)
                                 <output id="diameter-output">0</output>
@@ -82,6 +117,20 @@
                                 <p id="moid-output">0 km</p>
                             </div>
                         </div>
+                            <div class="environment-grid">
+                                <div class="environment-card">
+                                    <h3>Elevation</h3>
+                                    <p id="elevation-output">—</p>
+                                </div>
+                                <div class="environment-card">
+                                    <h3>Seismic Risk</h3>
+                                    <p id="seismic-risk-output">—</p>
+                                </div>
+                                <div class="environment-card">
+                                    <h3>Zone</h3>
+                                    <p id="coastal-output">—</p>
+                                </div>
+                            </div>
                         <div id="tsunami-warning" role="alert">Tsunami Risk: Coastal defenses must mobilise!</div>
                         <div id="defense-message" class="defense-message"></div>
                     </article>

@@ -15,6 +15,16 @@ const runButton = document.getElementById('run-simulation');
 const defenseButton = document.getElementById('defend-earth-button');
 const countdownEl = document.getElementById('defense-countdown');
 const messageEl = document.getElementById('defense-message');
+const asteroidSelect = document.getElementById('asteroid-select');
+
+const neoNameEl = document.getElementById('neo-name');
+const neoDesignationEl = document.getElementById('neo-designation');
+const neoVelocityEl = document.getElementById('neo-velocity');
+const neoDiameterEl = document.getElementById('neo-diameter');
+const neoMagnitudeEl = document.getElementById('neo-magnitude');
+const neoHazardBadge = document.getElementById('neo-hazard');
+const neoMoidEl = document.getElementById('neo-moid');
+const neoLinkEl = document.getElementById('neo-link');
 
 const diameterInput = document.getElementById('diameter_m');
 const velocityInput = document.getElementById('velocity_kms');
@@ -28,6 +38,9 @@ const energyOutput = document.getElementById('energy-output');
 const craterOutput = document.getElementById('crater-output');
 const seismicOutput = document.getElementById('seismic-output');
 const moidOutput = document.getElementById('moid-output');
+const elevationOutput = document.getElementById('elevation-output');
+const seismicRiskOutput = document.getElementById('seismic-risk-output');
+const coastalOutput = document.getElementById('coastal-output');
 
 const impactViz = new ImpactViz('map');
 const orbitalViz = new OrbitalViz('orbital-canvas');
@@ -86,6 +99,7 @@ function collectPayload(overrides = {}) {
         deflection_delta_v: Number(deltaVInput.value),
         impact_lat: DEFAULT_COORDS.lat,
         impact_lon: DEFAULT_COORDS.lon,
+        asteroid_id: asteroidSelect?.value || undefined,
         ...overrides,
     };
 }
@@ -149,7 +163,7 @@ async function runSimulation(overrides = {}, { skipDefenseCheck = false } = {}) 
 // Rendering
 // -----------------------------------------------------------------------------
 function renderSimulation(data, { skipDefenseCheck }) {
-    const { inputs, impact_effects, energy, environment, orbital_solution } = data;
+    const { inputs, impact_effects, energy, environment, orbital_solution, neo_reference } = data;
 
     impactViz.updateImpact({
         lat: inputs.impact_lat,
@@ -159,6 +173,9 @@ function renderSimulation(data, { skipDefenseCheck }) {
     });
 
     orbitalViz.renderPaths(orbital_solution);
+
+    renderNeoOverview(neo_reference);
+    renderEnvironment(environment);
 
     animateMetric(energyOutput, energy.energy_mt, ' MT', 2);
     animateMetric(craterOutput, impact_effects.crater_diameter_km, ' km', 2);
@@ -177,6 +194,59 @@ function renderSimulation(data, { skipDefenseCheck }) {
     }
 }
 
+function renderNeoOverview(neo) {
+    if (!neo) return;
+    neoNameEl.textContent = neo.name || '—';
+    neoDesignationEl.textContent = neo.designation || '—';
+    neoVelocityEl.textContent = neo.velocity_kms ? `${Number(neo.velocity_kms).toFixed(2)} km/s` : '—';
+    const diameterRange = neo.diameter_range_m || {};
+    if (diameterRange.min_m && diameterRange.max_m) {
+        neoDiameterEl.textContent = `${diameterRange.min_m.toFixed(0)}–${diameterRange.max_m.toFixed(0)} m`;
+    } else if (neo.diameter_m) {
+        neoDiameterEl.textContent = `${Number(neo.diameter_m).toFixed(0)} m`;
+    } else {
+        neoDiameterEl.textContent = '—';
+    }
+    neoMagnitudeEl.textContent = neo.absolute_magnitude_h ? neo.absolute_magnitude_h.toFixed(1) : '—';
+    neoMoidEl.textContent = neo.close_approach?.miss_distance_km
+        ? `${Number(neo.close_approach.miss_distance_km).toLocaleString()} km`
+        : '—';
+
+    const hazard = Boolean(neo.is_potentially_hazardous);
+    neoHazardBadge.textContent = hazard ? 'Hazardous' : 'Monitored';
+    neoHazardBadge.classList.toggle('hazard', hazard);
+    neoHazardBadge.classList.toggle('monitored', !hazard);
+    neoHazardBadge.dataset.source = neo.source || 'mock';
+    neoHazardBadge.title = neo.source === 'nasa'
+        ? 'Live data from NASA NeoWs'
+        : 'Reference profile (offline fallback)';
+
+    if (neoLinkEl) {
+        if (neo.nasa_jpl_url) {
+            neoLinkEl.href = neo.nasa_jpl_url;
+            neoLinkEl.hidden = false;
+        } else {
+            neoLinkEl.hidden = true;
+            neoLinkEl.removeAttribute('href');
+        }
+    }
+}
+
+function renderEnvironment(environment) {
+    if (!environment) return;
+    const elevation = environment.elevation_m;
+    elevationOutput.textContent = typeof elevation === 'number'
+        ? `${elevation.toFixed(0)} m`
+        : '—';
+    seismicRiskOutput.textContent = environment.seismic_zone_risk || 'Unknown';
+    const coastal = environment.is_coastal_zone;
+    if (coastal === null || coastal === undefined) {
+        coastalOutput.textContent = 'Unknown';
+    } else {
+        coastalOutput.textContent = coastal ? 'Coastal' : 'Inland';
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Event bindings
 // -----------------------------------------------------------------------------
@@ -187,6 +257,11 @@ form.addEventListener('submit', (event) => {
 
 [diameterInput, velocityInput, deltaVInput].forEach((input) => {
     input.addEventListener('input', updateSliderOutputs);
+});
+
+asteroidSelect?.addEventListener('change', () => {
+    resetDefenseStateUI();
+    runSimulation({ asteroid_id: asteroidSelect.value });
 });
 
 defenseButton.addEventListener('click', async () => {
@@ -219,4 +294,33 @@ defenseButton.addEventListener('click', async () => {
 // -----------------------------------------------------------------------------
 bindTooltips();
 updateSliderOutputs();
-runSimulation();
+loadAsteroidCatalog().then(() => {
+    runSimulation();
+});
+
+async function loadAsteroidCatalog() {
+    if (!asteroidSelect) return;
+    try {
+        asteroidSelect.disabled = true;
+        const response = await fetch('/api/asteroids?limit=20');
+        if (!response.ok) throw new Error('Catalog fetch failed');
+        const payload = await response.json();
+        const options = payload.objects || [];
+        asteroidSelect.innerHTML = '';
+        options.forEach((obj, idx) => {
+            const option = document.createElement('option');
+            option.value = obj.friendly_id || obj.asteroid_id;
+            option.dataset.asteroidId = obj.asteroid_id;
+            option.textContent = `${obj.name} (${obj.designation || obj.asteroid_id})`;
+            if (idx === 0 && !asteroidSelect.dataset.initialised) {
+                option.selected = true;
+            }
+            asteroidSelect.appendChild(option);
+        });
+        asteroidSelect.dataset.initialised = 'true';
+    } catch (error) {
+        console.error('Unable to load asteroid catalog', error);
+    } finally {
+        asteroidSelect.disabled = false;
+    }
+}

@@ -27,6 +27,8 @@ class Settings:
     default_longitude: float = float(os.getenv("ASTROSHIELD_DEFAULT_LON", "-118.25"))
     moid_threshold_km: float = float(os.getenv("ASTROSHIELD_MOID_THRESHOLD_KM", "75000"))
     simulation_sample_points: int = int(os.getenv("ASTROSHIELD_ORBIT_SAMPLES", "180"))
+    nasa_api_key: str = os.getenv("NASA_API_KEY", "DEMO_KEY")
+    use_live_apis: bool = bool(int(os.getenv("ASTROSHIELD_USE_LIVE_APIS", "1")))
 
 
 def get_settings() -> Settings:

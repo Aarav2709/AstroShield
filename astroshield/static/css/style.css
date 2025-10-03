@@ -87,6 +87,29 @@ button {
     transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
+select {
+    width: 100%;
+    background: rgba(9, 16, 30, 0.9);
+    border: 1px solid rgba(46, 229, 255, 0.24);
+    border-radius: 14px;
+    padding: 0.75rem 0.9rem;
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--accent-primary) 50%),
+        linear-gradient(135deg, var(--accent-primary) 50%, transparent 50%);
+    background-position: calc(100% - 20px) calc(1rem + 2px), calc(100% - 15px) calc(1rem + 2px);
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+}
+
+select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(46, 229, 255, 0.25);
+}
+
 .primary-button {
     background: linear-gradient(130deg, var(--accent-primary), var(--accent-secondary));
     color: var(--bg-deep-space);
@@ -134,6 +157,89 @@ main {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+}
+
+.neo-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.65rem;
+    padding-bottom: 1.5rem;
+}
+
+.neo-link {
+    grid-column: 1 / -1;
+    justify-self: flex-start;
+    padding: 0.5rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid rgba(46, 229, 255, 0.3);
+    color: var(--accent-primary);
+    text-decoration: none;
+    font-family: var(--font-heading);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.65rem;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.neo-link:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(46, 229, 255, 0.22);
+}
+
+.neo-summary__item {
+    background: rgba(9, 16, 30, 0.85);
+    border: 1px solid rgba(46, 229, 255, 0.18);
+    border-radius: 14px;
+    padding: 0.65rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.neo-summary__item .label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+}
+
+.neo-summary__item strong {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+}
+
+.neo-summary__badge {
+    align-self: flex-start;
+    padding: 0.55rem 0.95rem;
+    border-radius: 999px;
+    font-family: var(--font-heading);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    position: relative;
+}
+
+.neo-summary__badge.hazard {
+    background: rgba(255, 77, 77, 0.18);
+    border: 1px solid var(--accent-warning);
+    color: var(--accent-warning);
+}
+
+.neo-summary__badge.monitored {
+    background: rgba(110, 255, 169, 0.18);
+    border: 1px solid var(--accent-secondary);
+    color: var(--accent-secondary);
+}
+
+.neo-summary__badge::after {
+    content: attr(data-source);
+    position: absolute;
+    inset: auto auto -1.8rem 0;
+    font-size: 0.55rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
 }
 
 .slider-row {
@@ -278,6 +384,35 @@ input[type="range"] {
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 1.1rem;
     margin-top: 1.25rem;
+}
+
+.environment-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-top: 1.1rem;
+}
+
+.environment-card {
+    background: rgba(9, 16, 30, 0.82);
+    border-radius: 14px;
+    border: 1px solid rgba(46, 229, 255, 0.16);
+    padding: 0.9rem;
+}
+
+.environment-card h3 {
+    margin: 0;
+    font-family: var(--font-heading);
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.environment-card p {
+    margin: 0.4rem 0 0;
+    font-size: 1rem;
+    color: var(--accent-primary);
 }
 
 .metric-card {
