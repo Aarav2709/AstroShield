@@ -10,8 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Rubik:wght@400;500;600&display=swap" rel="stylesheet" />
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-sA+4psmk2cM1jV4I9+1H4n5qz85GkL9+augS74pCi2k=" crossorigin="" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
 </head>
@@ -148,15 +147,11 @@
         </footer>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-o9N1j7kGStg6Z9E8u3rN1ocC6Zb94p7l+O9F+okbBi8=" crossorigin=""></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"
-        integrity="sha512-14wTzECszO2vCuxnxOQk4LLx7sMMEZe7qVD/3GQ8LNkizDJ7HOg79DbDeihdj5Z8SGvtQvV4SBML217Bwe8x7w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"
-        integrity="sha512-Y4iweSwzS3uKOSeaMDAnbcWcCYwiVdc+GqOR/mdrIW6DCeU44yWiNysGEKMluSleqrs9jwELyhl725LLJoPLnw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/TextPlugin.min.js"
-        integrity="sha512-9lS1+t0NenE2no0RvrRZtGJPD7W82dManIeZDV4SSQSSHqzPaWY5AvzkdxlIo0NGdisz8Iky3Uczdlz7YTpcJQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.161.0/three.min.js" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/TextPlugin.min.js" referrerpolicy="no-referrer"></script>
 
     <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>

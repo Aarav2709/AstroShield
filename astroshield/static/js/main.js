@@ -318,8 +318,13 @@ async function loadAsteroidCatalog() {
             asteroidSelect.appendChild(option);
         });
         asteroidSelect.dataset.initialised = 'true';
+        if (!options.length) {
+            asteroidSelect.innerHTML = '<option value="Impactor-2025">Impactor-2025 (fallback)</option>';
+        }
     } catch (error) {
         console.error('Unable to load asteroid catalog', error);
+        asteroidSelect.innerHTML = '<option value="Impactor-2025">Impactor-2025 (fallback)</option>';
+        asteroidSelect.dataset.initialised = 'true';
     } finally {
         asteroidSelect.disabled = false;
     }
