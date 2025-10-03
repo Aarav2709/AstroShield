@@ -10,6 +10,65 @@ if (gsapRef && TextPlugin) {
 
 const DEFAULT_COORDS = { lat: 34.05, lon: -118.25 };
 
+const OFFLINE_BASELINE = {
+    inputs: {
+        diameter_m: 210,
+        velocity_kms: 21.5,
+        deflection_delta_v: 0,
+        impact_lat: 34.05,
+        impact_lon: -118.25,
+        asteroid_id: 'Impactor-2025',
+    },
+    neo_reference: {
+        name: 'Impactor-2025',
+        designation: '2025-IM',
+        velocity_kms: 21.5,
+        diameter_m: 210,
+        diameter_range_m: { min_m: 190, max_m: 230 },
+        absolute_magnitude_h: 21.0,
+        close_approach: {
+            miss_distance_km: 120000,
+        },
+    },
+    energy: {
+        energy_mt: 1172.3,
+        mass_kg: 14547144782,
+        effective_velocity_ms: 21500,
+        energy_joules: 3.67e18,
+    },
+    impact_effects: {
+        crater_diameter_km: 1.16,
+        seismic_magnitude: 6.6,
+    },
+    environment: {
+        elevation_m: 92,
+        seismic_zone_risk: 'High',
+        is_coastal_zone: true,
+        tsunami_risk: true,
+    },
+    orbital_solution: {
+        baseline_path: Array.from({ length: 64 }, (_, i) => {
+            const angle = (i / 64) * Math.PI * 2;
+            const radius = 150000000;
+            return {
+                x: radius * Math.cos(angle),
+                y: radius * Math.sin(angle),
+                z: 50000000 * Math.sin(angle * 0.5),
+            };
+        }),
+        deflected_path: Array.from({ length: 64 }, (_, i) => {
+            const angle = (i / 64) * Math.PI * 2;
+            const radius = 152500000;
+            return {
+                x: radius * Math.cos(angle + 0.05),
+                y: radius * Math.sin(angle + 0.05),
+                z: 45000000 * Math.sin(angle * 0.55),
+            };
+        }),
+        deflected_moid_km: 87000,
+    },
+};
+
 const form = document.getElementById('impact-form');
 const runButton = document.getElementById('run-simulation');
 const defenseButton = document.getElementById('defend-earth-button');
@@ -39,6 +98,8 @@ const moidOutput = document.getElementById('moid-output');
 const elevationOutput = document.getElementById('elevation-output');
 const seismicRiskOutput = document.getElementById('seismic-risk-output');
 const coastalOutput = document.getElementById('coastal-output');
+
+let lastSimulationData = null;
 
 const impactViz = new ImpactViz('map');
 const orbitalViz = new OrbitalViz('orbital-canvas');
@@ -145,11 +206,20 @@ async function runSimulation(overrides = {}, { skipDefenseCheck = false } = {}) 
         }
         const data = await response.json();
         renderSimulation(data, { skipDefenseCheck });
+        lastSimulationData = data;
+        messageEl.classList.remove('visible', 'defense-failure');
+        if (!defenseMode.isActive()) {
+            messageEl.textContent = '';
+        }
         return data;
     } catch (error) {
         console.error('Simulation error', error);
         messageEl.classList.add('visible', 'defense-failure');
         messageEl.textContent = 'Simulation error. Please retry.';
+        const fallback = lastSimulationData || OFFLINE_BASELINE;
+        if (fallback) {
+            renderSimulation(fallback, { skipDefenseCheck: true });
+        }
         return null;
     } finally {
         runButton.disabled = false;
@@ -160,7 +230,7 @@ async function runSimulation(overrides = {}, { skipDefenseCheck = false } = {}) 
 // -----------------------------------------------------------------------------
 // Rendering
 // -----------------------------------------------------------------------------
-function renderSimulation(data, { skipDefenseCheck }) {
+function renderSimulation(data, { skipDefenseCheck = false } = {}) {
     const { inputs, impact_effects, energy, environment, orbital_solution, neo_reference } = data;
 
     impactViz.updateImpact({
@@ -274,6 +344,8 @@ defenseButton.addEventListener('click', async () => {
 // -----------------------------------------------------------------------------
 bindTooltips();
 updateSliderOutputs();
+lastSimulationData = OFFLINE_BASELINE;
+renderSimulation(OFFLINE_BASELINE, { skipDefenseCheck: true });
 loadAsteroidCatalog().then(() => {
     runSimulation();
 });
