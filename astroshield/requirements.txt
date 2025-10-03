@@ -1,4 +1,6 @@
 Flask
 Flask-Cors
-requests
 numpy
+scipy
+requests
+python-dotenv

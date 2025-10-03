@@ -1,308 +1,222 @@
-/*
- * Client-side logic for AstroShield.
- *
- * Responsibilities:
- *  - Manage form interactions and communicate with the Flask backend.
- *  - Render Leaflet map visualisations and GSAP-powered animations.
- *  - Provide a gamified "Defend Earth" scenario with countdown pressure.
- */
+import ImpactViz from './ImpactViz.js';
+import OrbitalViz from './OrbitalViz.js';
+import DefenseMode from './DefenseMode.js';
 
-// -----------------------------------------------------------------------------
-// GSAP setup
-// -----------------------------------------------------------------------------
-if (window.gsap && window.TextPlugin) {
-    gsap.registerPlugin(TextPlugin);
+const gsapRef = window.gsap;
+const TextPlugin = window.TextPlugin;
+if (gsapRef && TextPlugin) {
+    gsapRef.registerPlugin(TextPlugin);
 }
 
-// -----------------------------------------------------------------------------
-// DOM references
-// -----------------------------------------------------------------------------
-const form = document.getElementById("impact-form");
-const defendButton = document.getElementById("defend-earth-button");
-const countdownEl = document.getElementById("defense-countdown");
-const defenseMessage = document.getElementById("defense-message");
+const DEFAULT_COORDS = { lat: 34.05, lon: -118.25 };
 
-const diameterInput = document.getElementById("diameter_m");
-const velocityInput = document.getElementById("velocity_kms");
-const deltaVInput = document.getElementById("deflection_delta_v");
+const form = document.getElementById('impact-form');
+const runButton = document.getElementById('run-simulation');
+const defenseButton = document.getElementById('defend-earth-button');
+const countdownEl = document.getElementById('defense-countdown');
+const messageEl = document.getElementById('defense-message');
 
-const diameterOutput = document.getElementById("diameter-output");
-const velocityOutput = document.getElementById("velocity-output");
-const deltaVOutput = document.getElementById("delta-v-output");
+const diameterInput = document.getElementById('diameter_m');
+const velocityInput = document.getElementById('velocity_kms');
+const deltaVInput = document.getElementById('deflection_delta_v');
 
-const energyOutput = document.getElementById("energy-output");
-const craterOutput = document.getElementById("crater-output");
-const seismicOutput = document.getElementById("seismic-output");
-const tsunamiWarning = document.getElementById("tsunami-warning");
+const diameterOutput = document.getElementById('diameter-output');
+const velocityOutput = document.getElementById('velocity-output');
+const deltaVOutput = document.getElementById('delta-v-output');
 
-// -----------------------------------------------------------------------------
-// Leaflet map initialisation
-// -----------------------------------------------------------------------------
-const map = L.map("map", {
-    worldCopyJump: true,
-    zoomControl: false,
-}).setView([20, 0], 2);
+const energyOutput = document.getElementById('energy-output');
+const craterOutput = document.getElementById('crater-output');
+const seismicOutput = document.getElementById('seismic-output');
+const moidOutput = document.getElementById('moid-output');
 
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 7,
-    attribution: "© OpenStreetMap contributors",
-}).addTo(map);
+const impactViz = new ImpactViz('map');
+const orbitalViz = new OrbitalViz('orbital-canvas');
 
-let impactCircle = null;
-
-// -----------------------------------------------------------------------------
-// State for defense mode
-// -----------------------------------------------------------------------------
-let defenseModeActive = false;
-let defenseCountdownTween = null;
-let defenseBaselineCraterKm = null;
-let defenseSubmitted = false;
+const defenseMode = new DefenseMode({
+    countdownEl,
+    messageEl,
+    onLockInputs: () => {
+        diameterInput.disabled = true;
+        velocityInput.disabled = true;
+        defenseButton.textContent = 'Cancel Defense';
+    },
+    onUnlockInputs: () => {
+        diameterInput.disabled = false;
+        velocityInput.disabled = false;
+        defenseButton.textContent = 'Defend Earth Mode';
+    },
+    onExpire: () => {
+        defenseButton.textContent = 'Defend Earth Mode';
+    },
+});
 
 // -----------------------------------------------------------------------------
-// Helpers
+// UI helpers
 // -----------------------------------------------------------------------------
-function updateOutputs() {
+function updateSliderOutputs() {
     diameterOutput.textContent = `${Number(diameterInput.value).toFixed(0)}`;
-    velocityOutput.textContent = `${Number(velocityInput.value).toFixed(0)}`;
+    velocityOutput.textContent = `${Number(velocityInput.value).toFixed(1)}`;
     deltaVOutput.textContent = `${Number(deltaVInput.value).toFixed(0)}`;
 }
 
-function toggleInputs(disabled) {
-    diameterInput.disabled = disabled;
-    velocityInput.disabled = disabled;
-    deltaVInput.disabled = false; // Always leave ΔV controllable
-}
-
-function resetDefenseState() {
-    defenseModeActive = false;
-    defenseBaselineCraterKm = null;
-    defenseSubmitted = false;
-    if (defenseCountdownTween) {
-        defenseCountdownTween.kill();
-        defenseCountdownTween = null;
+function animateMetric(element, value, suffix, decimals = 1) {
+    const target = Number(value) || 0;
+    element.dataset.value = target;
+    if (!gsapRef) {
+        element.textContent = `${target.toFixed(decimals)}${suffix}`;
+        return;
     }
-    countdownEl.textContent = "";
-    countdownEl.classList.remove("warning-text");
-    defenseMessage.className = "defense-message hidden";
-    defenseMessage.textContent = "";
-    form.reset();
-    diameterInput.value = 150;
-    velocityInput.value = 20;
-    deltaVInput.value = 0;
-    updateOutputs();
-    toggleInputs(false);
-}
-
-function animateMetric(element, suffix, value, decimals = 1) {
-    const obj = { val: 0 };
-    gsap.to(obj, {
-        val: value,
-        duration: 1.5,
-        ease: "power2.out",
-        onUpdate() {
-            element.textContent = `${obj.val.toFixed(decimals)} ${suffix}`;
+    const start = Number(element.dataset.renderedValue || 0);
+    const proxy = { val: start };
+    gsapRef.to(proxy, {
+        val: target,
+        duration: 1.4,
+        ease: 'power2.out',
+        onUpdate: () => {
+            element.dataset.renderedValue = proxy.val;
+            element.textContent = `${proxy.val.toFixed(decimals)}${suffix}`;
         },
     });
 }
 
-function showTsunamiWarning(active) {
-    if (active) {
-        tsunamiWarning.classList.remove("hidden");
-        tsunamiWarning.classList.add("pulse");
-    } else {
-        tsunamiWarning.classList.add("hidden");
-        tsunamiWarning.classList.remove("pulse");
-    }
-}
-
-function showDefenseMessage(success) {
-    defenseMessage.classList.remove("hidden", "defense-success", "defense-failure");
-    if (success) {
-        defenseMessage.textContent = "Defense Successful! Earth is safe.";
-        defenseMessage.classList.add("defense-success");
-    } else {
-        defenseMessage.textContent = "Defense Failed. Impact devastation imminent.";
-        defenseMessage.classList.add("defense-failure");
-    }
-}
-
-function renderImpact(data) {
-    const { impact_lat, impact_lon } = data;
-
-    // Remove previous circle, if any
-    if (impactCircle) {
-        map.removeLayer(impactCircle);
-    }
-
-    impactCircle = L.circle([impact_lat, impact_lon], {
-        radius: 0,
-        color: "#ff4d4d",
-        fillColor: "#ff4d4d",
-        fillOpacity: 0.25,
-        weight: 2,
-    }).addTo(map);
-
-    map.flyTo([impact_lat, impact_lon], 6, {
-        animate: true,
-        duration: 1.5,
-    });
-
-    const radiusState = { km: 0 };
-    const targetRadiusKm = Math.max(Number(data.crater_diameter_km) || 0, 0);
-    gsap.to(radiusState, {
-        km: targetRadiusKm,
-        duration: 1.5,
-        ease: "power2.out",
-        onUpdate() {
-            const radiusMeters = Math.max(radiusState.km * 1000, 1000);
-            impactCircle.setRadius(radiusMeters);
-        },
-    });
-
-    animateMetric(energyOutput, "MT", data.energy_mt, 2);
-    animateMetric(craterOutput, "km", data.crater_diameter_km, 2);
-    animateMetric(seismicOutput, "Mw", data.seismic_magnitude, 2);
-
-    if (Number(data.deflection_delta_v) > 0) {
-        gsap.fromTo(
-            energyOutput,
-            { color: "#4cffaf" },
-            { color: "#2ee5ff", duration: 1.2, ease: "power2.out" }
-        );
-    }
-
-    showTsunamiWarning(Boolean(data.tsunami_risk));
-
-    if (defenseModeActive && defenseBaselineCraterKm !== null) {
-        const reduction = 1 - data.crater_diameter_km / defenseBaselineCraterKm;
-        const success = reduction >= 0.5 && Number(data.deflection_delta_v) > 0;
-        showDefenseMessage(success);
-        defenseSubmitted = true;
-        defenseModeActive = false;
-        toggleInputs(false);
-        if (defenseCountdownTween) {
-            defenseCountdownTween.kill();
-            defenseCountdownTween = null;
-        }
-        countdownEl.textContent = "";
-    }
-}
-
-async function runSimulation(payload) {
-    try {
-        const response = await fetch("/api/simulate", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-            throw new Error(`Simulation failed with status ${response.status}`);
-        }
-
-        const data = await response.json();
-        renderImpact(data);
-        return data;
-    } catch (error) {
-        console.error("Simulation error", error);
-        defenseMessage.classList.remove("hidden");
-        defenseMessage.textContent = "Simulation error. Please try again.";
-        defenseMessage.classList.add("defense-failure");
-        return null;
-    }
-}
-
-// -----------------------------------------------------------------------------
-// Event handlers
-// -----------------------------------------------------------------------------
-function handleFormSubmit(event) {
-    event.preventDefault();
-
-    const payload = {
+function collectPayload(overrides = {}) {
+    return {
         diameter_m: Number(diameterInput.value),
         velocity_kms: Number(velocityInput.value),
         deflection_delta_v: Number(deltaVInput.value),
-        impact_lat: 34.05,
-        impact_lon: -118.25,
+        impact_lat: DEFAULT_COORDS.lat,
+        impact_lon: DEFAULT_COORDS.lon,
+        ...overrides,
     };
-
-    runSimulation(payload);
 }
 
-function startDefenseMode() {
-    resetDefenseState();
-    defenseModeActive = true;
+function bindTooltips() {
+    document.querySelectorAll('.info-card').forEach((card) => {
+        const trigger = card.querySelector('.tooltip-trigger');
+        const tooltip = card.querySelector('.tooltip');
+        if (!trigger || !tooltip) return;
+        const show = () => tooltip.classList.add('visible');
+        const hide = () => tooltip.classList.remove('visible');
+        trigger.addEventListener('mouseenter', show);
+        trigger.addEventListener('focus', show);
+        trigger.addEventListener('mouseleave', hide);
+        trigger.addEventListener('blur', hide);
+        trigger.addEventListener('click', (event) => {
+            event.preventDefault();
+            tooltip.classList.toggle('visible');
+        });
+    });
+}
 
-    // Fixed high-threat scenario
-    const fixedDiameter = 450;
-    const fixedVelocity = 28;
-    const baselinePayload = {
-        diameter_m: fixedDiameter,
-        velocity_kms: fixedVelocity,
-        deflection_delta_v: 0,
-        impact_lat: 34.05,
-        impact_lon: -118.25,
-    };
+function resetDefenseStateUI() {
+    defenseMode.cancel();
+    defenseButton.textContent = 'Defend Earth Mode';
+    messageEl.classList.remove('visible', 'defense-success', 'defense-failure');
+    messageEl.textContent = '';
+}
 
-    diameterInput.value = fixedDiameter;
-    velocityInput.value = fixedVelocity;
-    deltaVInput.value = 0;
-    updateOutputs();
-
-    toggleInputs(true);
-
-    runSimulation(baselinePayload).then((data) => {
-        if (data) {
-            defenseBaselineCraterKm = data.crater_diameter_km;
+// -----------------------------------------------------------------------------
+// Networking
+// -----------------------------------------------------------------------------
+async function runSimulation(overrides = {}, { skipDefenseCheck = false } = {}) {
+    const payload = collectPayload(overrides);
+    try {
+        runButton.disabled = true;
+        runButton.textContent = 'Calculating...';
+        const response = await fetch('/api/simulate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+            throw new Error(`Simulation failed with status ${response.status}`);
         }
-    });
-
-    const countdownState = { seconds: 10 };
-    countdownEl.classList.add("warning-text");
-
-    defenseCountdownTween = gsap.to(countdownState, {
-        seconds: 0,
-        duration: 10,
-        ease: "none",
-        onUpdate() {
-            countdownEl.textContent = `Time to Impact: ${Math.ceil(countdownState.seconds)}s`;
-        },
-        onComplete() {
-            if (defenseModeActive && !defenseSubmitted) {
-                showDefenseMessage(false);
-                defenseModeActive = false;
-                toggleInputs(false);
-            }
-        },
-    });
+        const data = await response.json();
+        renderSimulation(data, { skipDefenseCheck });
+        return data;
+    } catch (error) {
+        console.error('Simulation error', error);
+        messageEl.classList.add('visible', 'defense-failure');
+        messageEl.textContent = 'Simulation error. Please retry.';
+        return null;
+    } finally {
+        runButton.disabled = false;
+        runButton.textContent = 'Run Simulation';
+    }
 }
 
 // -----------------------------------------------------------------------------
-// Wire up listeners
+// Rendering
 // -----------------------------------------------------------------------------
-form.addEventListener("submit", handleFormSubmit);
-[diameterInput, velocityInput, deltaVInput].forEach((input) => {
-    input.addEventListener("input", updateOutputs);
-});
+function renderSimulation(data, { skipDefenseCheck }) {
+    const { inputs, impact_effects, energy, environment, orbital_solution } = data;
 
-defendButton.addEventListener("click", () => {
-    if (defenseModeActive) {
-        resetDefenseState();
-    } else {
-        startDefenseMode();
+    impactViz.updateImpact({
+        lat: inputs.impact_lat,
+        lon: inputs.impact_lon,
+        craterDiameterKm: impact_effects.crater_diameter_km,
+        tsunamiRisk: environment.tsunami_risk,
+    });
+
+    orbitalViz.renderPaths(orbital_solution);
+
+    animateMetric(energyOutput, energy.energy_mt, ' MT', 2);
+    animateMetric(craterOutput, impact_effects.crater_diameter_km, ' km', 2);
+    animateMetric(seismicOutput, impact_effects.seismic_magnitude, ' Mw', 2);
+    animateMetric(moidOutput, orbital_solution.deflected_moid_km, ' km', 0);
+
+    if (defenseMode.isActive()) {
+        if (!defenseMode.hasBaseline()) {
+            defenseMode.recordBaseline(impact_effects.crater_diameter_km);
+        } else if (!skipDefenseCheck) {
+            defenseMode.evaluateAttempt({
+                craterKm: impact_effects.crater_diameter_km,
+                deltaV: inputs.deflection_delta_v,
+            });
+        }
     }
+}
+
+// -----------------------------------------------------------------------------
+// Event bindings
+// -----------------------------------------------------------------------------
+form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    runSimulation();
 });
 
-// Initialise outputs on load
-updateOutputs();
-
-// Run an initial simulation for immediate feedback
-runSimulation({
-    diameter_m: Number(diameterInput.value),
-    velocity_kms: Number(velocityInput.value),
-    deflection_delta_v: Number(deltaVInput.value),
-    impact_lat: 34.05,
-    impact_lon: -118.25,
+[diameterInput, velocityInput, deltaVInput].forEach((input) => {
+    input.addEventListener('input', updateSliderOutputs);
 });
+
+defenseButton.addEventListener('click', async () => {
+    if (defenseMode.isActive()) {
+        resetDefenseStateUI();
+        diameterInput.value = 210;
+        velocityInput.value = 21.5;
+        deltaVInput.value = 0;
+        updateSliderOutputs();
+        runSimulation();
+        return;
+    }
+
+    const scenario = defenseMode.start();
+    diameterInput.value = scenario.diameter_m;
+    velocityInput.value = scenario.velocity_kms;
+    deltaVInput.value = 0;
+    updateSliderOutputs();
+    await runSimulation({
+        diameter_m: scenario.diameter_m,
+        velocity_kms: scenario.velocity_kms,
+        deflection_delta_v: 0,
+        impact_lat: scenario.impact_lat,
+        impact_lon: scenario.impact_lon,
+    }, { skipDefenseCheck: true });
+});
+
+// -----------------------------------------------------------------------------
+// Initialise UI & first simulation
+// -----------------------------------------------------------------------------
+bindTooltips();
+updateSliderOutputs();
+runSimulation();

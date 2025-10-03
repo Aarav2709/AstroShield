@@ -4,90 +4,111 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AstroShield | Planetary Defense Simulator</title>
+    <title>AstroShield</title>
 
-    <!-- Leaflet mapping library -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Rubik:wght@400;500;600&display=swap" rel="stylesheet" />
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-sA+4psmk2cM1jV4I9+1H4n5qz85GkL9+augS74pCi2k=" crossorigin="" />
 
-    <!-- Fonts & main stylesheet -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Rubik:wght@400;500&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
 </head>
 <body>
     <div id="app">
         <header>
-            <div class="title-block">
+            <div>
                 <h1>AstroShield</h1>
-                <p class="subtitle">Model the "Impactor-2025" scenario, test mitigation strategies, and defend Earth.</p>
+                <p class="subtitle">Interactive planetary defense operations center. Model Impactor-2025, explore mitigation tactics, and teach the science behind asteroid stewardship.</p>
             </div>
-            <div class="header-actions">
-                <button id="defend-earth-button" class="accent-button">Defend Earth Mode</button>
+            <div class="actions">
+                <button id="defend-earth-button" class="ghost-button">Defend Earth Mode</button>
+                <button id="run-simulation" form="impact-form" class="primary-button">Run Simulation</button>
             </div>
         </header>
 
         <main>
             <section id="controls-panel">
+                <h2>Mission Control</h2>
                 <form id="impact-form">
-                    <div class="input-group">
-                        <label for="diameter_m">Asteroid Diameter (m)</label>
-                        <input type="range" id="diameter_m" name="diameter_m" min="50" max="1000" value="150" step="10" />
-                        <output for="diameter_m" id="diameter-output">150</output>
+                    <div class="control-group">
+                        <div class="slider-row">
+                            <label for="diameter_m">Asteroid Diameter (m)
+                                <output id="diameter-output">0</output>
+                            </label>
+                            <input type="range" id="diameter_m" name="diameter_m" min="50" max="1200" step="10" value="210" />
+                        </div>
+                        <div class="slider-row">
+                            <label for="velocity_kms">Impact Velocity (km/s)
+                                <output id="velocity-output">0</output>
+                            </label>
+                            <input type="range" id="velocity_kms" name="velocity_kms" min="5" max="70" step="0.5" value="21.5" />
+                        </div>
+                        <div class="slider-row">
+                            <label for="deflection_delta_v">Deflection ΔV (m/s)
+                                <output id="delta-v-output">0</output>
+                            </label>
+                            <input type="range" id="deflection_delta_v" name="deflection_delta_v" min="0" max="8000" step="50" value="0" />
+                        </div>
                     </div>
-                    <div class="input-group">
-                        <label for="velocity_kms">Impact Velocity (km/s)</label>
-                        <input type="range" id="velocity_kms" name="velocity_kms" min="5" max="70" value="20" step="1" />
-                        <output for="velocity_kms" id="velocity-output">20</output>
-                    </div>
-                    <div class="input-group">
-                        <label for="deflection_delta_v">Deflection ΔV (m/s)</label>
-                        <input type="range" id="deflection_delta_v" name="deflection_delta_v" min="0" max="5000" value="0" step="50" />
-                        <output for="deflection_delta_v" id="delta-v-output">0</output>
-                    </div>
+
                     <div class="form-actions">
-                        <button type="submit" id="run-simulation" class="primary-button">Run Simulation</button>
+                        <div id="defense-countdown" aria-live="polite"></div>
                     </div>
-                    <div id="defense-countdown" aria-live="polite"></div>
                 </form>
             </section>
 
-            <section id="visualization-panel">
-                <div id="map"></div>
-                <div id="results-panel">
-                    <div class="result">
-                        <h3>Impact Energy</h3>
-                        <p id="energy-output" class="metric">0 MT</p>
-                    </div>
-                    <div class="result">
-                        <h3>Crater Diameter</h3>
-                        <p id="crater-output" class="metric">0 km</p>
-                    </div>
-                    <div class="result">
-                        <h3>Seismic Magnitude</h3>
-                        <p id="seismic-output" class="metric">0 Mw</p>
-                    </div>
-                    <div id="tsunami-warning" class="warning hidden" role="alert">
-                        Tsunami Risk: Coastal defenses must mobilize!
-                    </div>
-                    <div id="defense-message" class="defense-message hidden"></div>
+            <section id="visualisation-columns">
+                <div class="viz-row">
+                    <article class="panel">
+                        <h2>Impact Footprint</h2>
+                        <div id="map"></div>
+                        <div class="metric-grid">
+                            <div class="metric-card">
+                                <h3>Impact Energy</h3>
+                                <p id="energy-output">0 MT</p>
+                            </div>
+                            <div class="metric-card">
+                                <h3>Crater Diameter</h3>
+                                <p id="crater-output">0 km</p>
+                            </div>
+                            <div class="metric-card">
+                                <h3>Seismic Magnitude</h3>
+                                <p id="seismic-output">0 Mw</p>
+                            </div>
+                            <div class="metric-card">
+                                <h3>MOID</h3>
+                                <p id="moid-output">0 km</p>
+                            </div>
+                        </div>
+                        <div id="tsunami-warning" role="alert">Tsunami Risk: Coastal defenses must mobilise!</div>
+                        <div id="defense-message" class="defense-message"></div>
+                    </article>
+
+                    <article class="panel">
+                        <h2>Orbital Sandbox</h2>
+                        <div id="orbital-canvas"></div>
+                    </article>
                 </div>
             </section>
         </main>
 
         <footer>
-            <p>Data inspired by NASA NEO &amp; USGS datasets. Built for the Space Apps Challenge.</p>
+            <p>Powered by open NASA NEO data models and USGS-inspired terrain heuristics. Built for the Space Apps "Meteor Madness" challenge.</p>
         </footer>
     </div>
 
-    <!-- External dependencies -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-o9N1j7kGStg6Z9E8u3rN1ocC6Zb94p7l+O9F+okbBi8=" crossorigin=""></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" integrity="sha512-JFF0ez5J+SoA1z7WCS+w06Aj0TX7zAzoURVYfQ+T4zwW6Vo2Rj0QGcxS4tlupEDwSy1sAIAyZojc4i+JQ9pGsA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/TextPlugin.min.js" integrity="sha512-H2dc54KkS9QLqZPeXo9aAs3cYZxGCxrjMBRzFfK2lEZR5oMk9X6ndVvKX8vrR8MDpMQ4eHapGXuk3+OfXKIfzg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"
+        integrity="sha512-14wTzECszO2vCuxnxOQk4LLx7sMMEZe7qVD/3GQ8LNkizDJ7HOg79DbDeihdj5Z8SGvtQvV4SBML217Bwe8x7w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"
+        integrity="sha512-Y4iweSwzS3uKOSeaMDAnbcWcCYwiVdc+GqOR/mdrIW6DCeU44yWiNysGEKMluSleqrs9jwELyhl725LLJoPLnw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/TextPlugin.min.js"
+        integrity="sha512-9lS1+t0NenE2no0RvrRZtGJPD7W82dManIeZDV4SSQSSHqzPaWY5AvzkdxlIo0NGdisz8Iky3Uczdlz7YTpcJQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-    <!-- Main client script -->
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
