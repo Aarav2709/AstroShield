@@ -1,6 +1,8 @@
 import * as THREE from '../vendor/three.module.js';
 
-const SCALE_FACTOR = 1 / 250000; // Compress kilometre coordinates into scene units
+const AU_IN_KM = 149_597_870.7;
+const SCALE_FACTOR = 1 / AU_IN_KM; // Convert kilometres into Astronomical Units for the scene
+const MAX_PIXEL_RATIO = 2;
 
 export default class OrbitalViz {
     constructor(containerId) {
@@ -11,20 +13,23 @@ export default class OrbitalViz {
         const width = this.container.clientWidth || this.container.parentElement?.clientWidth || 640;
         const height = this.container.clientHeight || 420;
 
-        this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-        this.camera.position.set(0, 8, 12);
+    this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    this.camera.position.set(0, 6, 10);
+    this.camera.lookAt(0, 0, 0);
 
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
-        this.renderer.setSize(width, height);
-        this.container.appendChild(this.renderer.domElement);
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO));
+    this.renderer.setSize(width, height);
+    this.container.appendChild(this.renderer.domElement);
+    this._onResize();
 
         this.controls = null;
         this._initLights();
         this._initBodies();
 
-        this.baselineOrbit = null;
-        this.deflectedOrbit = null;
-        this.asteroidMarker = null;
+    this.baselineOrbit = null;
+    this.deflectedOrbit = null;
+    this.asteroidMarker = null;
 
         this._animate = this._animate.bind(this);
         requestAnimationFrame(this._animate);
@@ -66,6 +71,7 @@ export default class OrbitalViz {
         const height = this.container.clientHeight || 420;
         this.camera.aspect = width / height;
         this.camera.updateProjectionMatrix();
+        this.camera.lookAt(0, 0, 0);
         this.renderer.setSize(width, height);
     }
 
@@ -88,9 +94,9 @@ export default class OrbitalViz {
     renderPaths({ baseline_path, deflected_path }) {
         if (!baseline_path || !deflected_path) return;
 
-        if (this.baselineOrbit) this.scene.remove(this.baselineOrbit);
-        if (this.deflectedOrbit) this.scene.remove(this.deflectedOrbit);
-        if (this.asteroidMarker) this.scene.remove(this.asteroidMarker);
+    this._disposeObject(this.baselineOrbit);
+    this._disposeObject(this.deflectedOrbit);
+    this._disposeObject(this.asteroidMarker);
 
         this.baselineOrbit = this._createOrbitLine(baseline_path, 0x2ee5ff);
         this.deflectedOrbit = this._createOrbitLine(deflected_path, 0x6effa9);
@@ -106,5 +112,20 @@ export default class OrbitalViz {
             lastPoint.z * SCALE_FACTOR
         );
         this.scene.add(this.asteroidMarker);
+    }
+
+    _disposeObject(object3d) {
+        if (!object3d) return;
+        if (object3d.geometry) {
+            object3d.geometry.dispose();
+        }
+        if (object3d.material) {
+            if (Array.isArray(object3d.material)) {
+                object3d.material.forEach((mat) => mat.dispose?.());
+            } else {
+                object3d.material.dispose?.();
+            }
+        }
+        this.scene.remove(object3d);
     }
 }
