@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Orbital Lab · AstroShield{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1>Orbital Lab</h1>
+    <p class="subtitle">Experiment with orbital mechanics, tweak deflection strategies, and track orbital responses in real time.</p>
+    </div>
+    <div class="actions">
+        <a class="ghost-button" href="{{ url_for('mission_control') }}">Back to Mission Control</a>
+    </div>
+</header>
+
+<main class="orbital-layout">
+    <section class="panel orbital-controls">
+        <form id="orbital-form" class="orbital-form">
+            <div class="control-group">
+                <label for="orbital-asteroid-select">Asteroid Profile</label>
+                <select id="orbital-asteroid-select" name="asteroid_id" aria-label="Select near-Earth object">
+                    <option value="Impactor-2025">Loading catalog…</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <div class="slider-row">
+                    <label for="orbital-deflection-delta-v">Deflection ΔV (m/s)
+                        <output id="orbital-delta-output">0</output>
+                    </label>
+                    <input type="range" id="orbital-deflection-delta-v" name="deflection_delta_v" min="0" max="8000" step="50" value="0" />
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button id="orbital-run" type="submit" class="primary-button">Update Trajectory</button>
+            </div>
+        </form>
+
+        <div class="orbital-summary">
+            <div class="orbital-summary__item">
+                <span class="label">Object</span>
+                <strong id="orbital-neo-name">—</strong>
+            </div>
+            <div class="orbital-summary__item">
+                <span class="label">Velocity</span>
+                <strong id="orbital-neo-velocity">—</strong>
+            </div>
+            <div class="orbital-summary__item">
+                <span class="label">Diameter</span>
+                <strong id="orbital-neo-diameter">—</strong>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel orbital-visual">
+        <div id="orbital-canvas"></div>
+        <div class="orbital-legend" aria-label="Orbit path legend">
+            <div class="orbital-legend__item">
+                <span class="orbital-legend__swatch" style="background-color: #2ee5ff"></span>
+                Baseline Trajectory
+            </div>
+            <div class="orbital-legend__item">
+                <span class="orbital-legend__swatch" style="background-color: #6effa9"></span>
+                Mitigated Trajectory
+            </div>
+            <div class="orbital-legend__item">
+                <span class="orbital-legend__swatch" style="background: linear-gradient(90deg, rgba(255,255,255,0.35), rgba(255,255,255,0))"></span>
+                Atmosphere & Cloud Layer
+            </div>
+        </div>
+    </section>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{{ url_for('static', filename='js/orbitalLab.js') }}"></script>
+{% endblock %}

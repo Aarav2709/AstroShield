@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}AstroShield · Planetary Defense Simulator{% endblock %}
+
+{% block content %}
+<header class="landing-hero">
+    <div class="landing-hero__copy">
+        <h1>Planetary Defense, Demystified.</h1>
+        <p>AstroShield is your mission console for modelling near-Earth asteroid encounters, exploring mitigation tactics, and understanding the science that keeps our world safe.</p>
+        <div class="landing-hero__actions">
+            <a class="primary-button" href="{{ url_for('mission_control') }}">Launch Mission Control</a>
+            <a class="ghost-button" href="{{ url_for('orbital_lab') }}">Explore Orbital Lab</a>
+        </div>
+    </div>
+    <div class="landing-hero__callout">
+        <div class="callout-card">
+            <h2>Why AstroShield?</h2>
+            <ul>
+                <li>Hands-on mission planning with real asteroid datasets.</li>
+                <li>Real-time impact visualisation and mitigation modelling.</li>
+                <li>Interactive orbital sandbox powered by Three.js.</li>
+            </ul>
+        </div>
+    </div>
+</header>
+
+<main class="landing-grid">
+    <section class="info-section">
+        <h2>Choose your command deck</h2>
+        <div class="feature-grid">
+            <article class="feature-card">
+                <h3>Mission Control</h3>
+                <p>Adjust asteroid parameters, simulate kinetic impact outcomes, and manage defense protocols with immediate, animated feedback.</p>
+                <a href="{{ url_for('mission_control') }}" class="feature-card__link">Begin Simulation →</a>
+            </article>
+            <article class="feature-card">
+                <h3>Orbital Lab</h3>
+                <p>Manipulate orbital trajectories, experiment with deflection ΔV, and visualise MOID shifts in an immersive 3D sandbox.</p>
+                <a href="{{ url_for('orbital_lab') }}" class="feature-card__link">Enter the Lab →</a>
+            </article>
+            <article class="feature-card">
+                <h3>Data Backbone</h3>
+                <p>Backed by NASA NEO catalogues with deterministic fallbacks, delivering resilient simulations even when offline.</p>
+                <a href="https://www.nasa.gov/" target="_blank" rel="noopener" class="feature-card__link">Learn about NASA NEOs →</a>
+            </article>
+        </div>
+    </section>
+
+</main>
+{% endblock %}

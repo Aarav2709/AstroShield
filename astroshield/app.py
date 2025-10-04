@@ -40,8 +40,18 @@ def _prepare_inputs(payload: Dict[str, Any]) -> Dict[str, float]:
 
 
 @app.route("/")
-def index() -> str:
-    return render_template("index.html")
+def home() -> str:
+    return render_template("home.html", active_page="home")
+
+
+@app.route("/mission-control")
+def mission_control() -> str:
+    return render_template("mission_control.html", active_page="mission-control")
+
+
+@app.route("/orbital-lab")
+def orbital_lab() -> str:
+    return render_template("orbital_lab.html", active_page="orbital-lab")
 
 
 @app.route("/api/simulate", methods=["POST"])

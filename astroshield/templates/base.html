@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}AstroShield{% endblock %}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Rubik:wght@400;500;600&display=swap" rel="stylesheet" />
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="page-{{ active_page | default('') }}">
+    <div id="app" data-page="{{ active_page | default('') }}">
+        <nav class="app-nav" aria-label="Primary">
+            <a class="app-nav__brand" href="{{ url_for('home') }}">AstroShield</a>
+            <div class="app-nav__links">
+                <a href="{{ url_for('home') }}" class="app-nav__link{% if active_page == 'home' %} is-active{% endif %}">Home</a>
+                <a href="{{ url_for('mission_control') }}" class="app-nav__link{% if active_page == 'mission-control' %} is-active{% endif %}">Mission Control</a>
+                <a href="{{ url_for('orbital_lab') }}" class="app-nav__link{% if active_page == 'orbital-lab' %} is-active{% endif %}">Orbital Lab</a>
+            </div>
+        </nav>
+
+        {% block content %}{% endblock %}
+
+        <footer class="app-footer">
+            <p>Powered by open NASA NEO data models and USGS-inspired terrain heuristics. Built for the Space Apps "Meteor Madness" challenge.</p>
+        </footer>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/TextPlugin.min.js" referrerpolicy="no-referrer"></script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

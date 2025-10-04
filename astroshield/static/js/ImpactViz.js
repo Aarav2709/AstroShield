@@ -16,10 +16,9 @@ export default class ImpactViz {
 
         this.craterCircle = null;
         this.radiusScale = d3.scaleLinear().domain([0, 30]).range([500, 120000]);
-        this.warningEl = document.getElementById("tsunami-warning");
     }
 
-    updateImpact({ lat, lon, craterDiameterKm, tsunamiRisk }) {
+    updateImpact({ lat, lon, craterDiameterKm }) {
         if (this.craterCircle) {
             this.map.removeLayer(this.craterCircle);
         }
@@ -47,16 +46,5 @@ export default class ImpactViz {
                 this.craterCircle.setRadius(Math.max(tweenTarget.value, 250));
             },
         });
-
-        this.toggleTsunami(tsunamiRisk);
-    }
-
-    toggleTsunami(active) {
-        if (!this.warningEl) return;
-        if (active) {
-            this.warningEl.classList.add("visible");
-        } else {
-            this.warningEl.classList.remove("visible");
-        }
     }
 }

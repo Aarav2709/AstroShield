@@ -58,7 +58,10 @@ export default class OrbitalViz {
         this.baselineOrbit = null;
         this.deflectedOrbit = null;
         this.asteroidMarker = null;
-    this.cloudMesh = null;
+        this.asteroidPathVectors = null;
+        this._asteroidProgress = 0;
+        this._asteroidSpeed = 0.0024;
+        this.cloudMesh = null;
 
         this._animate = this._animate.bind(this);
         requestAnimationFrame(this._animate);
@@ -120,6 +123,7 @@ export default class OrbitalViz {
         this.earth.rotation.y += 0.0025;
         if (this.asteroidMarker) {
             this.asteroidMarker.rotation.y += 0.01;
+            this._advanceAsteroidMarker();
         }
         if (this.cloudMesh) {
             this.cloudMesh.rotation.y += CLOUD_ROTATION_SPEED;
@@ -509,21 +513,49 @@ export default class OrbitalViz {
         this._disposeObject(this.baselineOrbit);
         this._disposeObject(this.deflectedOrbit);
         this._disposeObject(this.asteroidMarker);
+    this.baselineOrbit = null;
+    this.deflectedOrbit = null;
+    this.asteroidMarker = null;
+        this.asteroidPathVectors = null;
+        this._asteroidProgress = 0;
 
         this.baselineOrbit = this._createOrbitLine(baseline_path, 0x2ee5ff);
         this.deflectedOrbit = this._createOrbitLine(deflected_path, 0x6effa9);
         this.scene.add(this.baselineOrbit, this.deflectedOrbit);
 
-        const lastPoint = deflected_path[Math.floor(deflected_path.length / 4)] || deflected_path[0];
-        const markerGeometry = new THREE.SphereGeometry(0.12, 24, 24);
-        const markerMaterial = new THREE.MeshPhongMaterial({ color: 0xffd166, emissive: 0x421f0f });
-        this.asteroidMarker = new THREE.Mesh(markerGeometry, markerMaterial);
-        this.asteroidMarker.position.set(
-            lastPoint.x * SCALE_FACTOR,
-            lastPoint.y * SCALE_FACTOR,
-            lastPoint.z * SCALE_FACTOR
-        );
-        this.scene.add(this.asteroidMarker);
+        const deflectedVectors = deflected_path.map((point) => new THREE.Vector3(
+            (Number(point?.x) || 0) * SCALE_FACTOR,
+            (Number(point?.y) || 0) * SCALE_FACTOR,
+            (Number(point?.z) || 0) * SCALE_FACTOR,
+        ));
+        if (deflectedVectors.length) {
+            this.asteroidPathVectors = deflectedVectors;
+            const dynamicSpeed = Math.min(0.01, Math.max(0.00045, 0.8 / deflectedVectors.length));
+            this._asteroidSpeed = dynamicSpeed;
+            const markerGeometry = new THREE.SphereGeometry(0.12, 24, 24);
+            const markerMaterial = new THREE.MeshPhongMaterial({ color: 0xffd166, emissive: 0x421f0f });
+            this.asteroidMarker = new THREE.Mesh(markerGeometry, markerMaterial);
+            this.asteroidMarker.position.copy(deflectedVectors[0]);
+            this.scene.add(this.asteroidMarker);
+        }
+    }
+
+    _advanceAsteroidMarker() {
+        if (!this.asteroidMarker || !this.asteroidPathVectors || this.asteroidPathVectors.length === 0) {
+            return;
+        }
+        if (this.asteroidPathVectors.length === 1) {
+            this.asteroidMarker.position.copy(this.asteroidPathVectors[0]);
+            return;
+        }
+        this._asteroidProgress = (this._asteroidProgress + this._asteroidSpeed) % 1;
+        const segmentPosition = this._asteroidProgress * this.asteroidPathVectors.length;
+        const currentIndex = Math.floor(segmentPosition);
+        const nextIndex = (currentIndex + 1) % this.asteroidPathVectors.length;
+        const blend = segmentPosition - currentIndex;
+        const currentPoint = this.asteroidPathVectors[currentIndex];
+        const nextPoint = this.asteroidPathVectors[nextIndex];
+        this.asteroidMarker.position.lerpVectors(currentPoint, nextPoint, blend);
     }
 
     _disposeObject(object3d) {

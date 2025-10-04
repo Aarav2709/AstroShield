@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Mission Control · AstroShield{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1>Mission Control</h1>
+        <p class="subtitle">Tune asteroid parameters, simulate impact outcomes, and coordinate mitigation tactics from a streamlined operations deck.</p>
+    </div>
+    <div class="actions">
+        <button id="defend-earth-button" class="ghost-button">Defend Earth Mode</button>
+        <button id="run-simulation" form="impact-form" class="primary-button">Run Simulation</button>
+    </div>
+</header>
+
+<main class="mission-layout">
+    <section id="controls-panel">
+        <h2>Mission Parameters</h2>
+        <form id="impact-form">
+            <div class="control-group">
+                <label for="asteroid-select">Asteroid Profile</label>
+                <select id="asteroid-select" name="asteroid_id" aria-label="Select near-Earth object">
+                    <option value="Impactor-2025">Loading catalog…</option>
+                </select>
+                <div class="neo-summary">
+                    <div class="neo-summary__item">
+                        <span class="label">Name</span>
+                        <strong id="neo-name">—</strong>
+                    </div>
+                    <div class="neo-summary__item">
+                        <span class="label">Designation</span>
+                        <strong id="neo-designation">—</strong>
+                    </div>
+                    <div class="neo-summary__item">
+                        <span class="label">Velocity</span>
+                        <strong id="neo-velocity">—</strong>
+                    </div>
+                    <div class="neo-summary__item">
+                        <span class="label">Diameter</span>
+                        <strong id="neo-diameter">—</strong>
+                    </div>
+                    <div class="neo-summary__item">
+                        <span class="label">Abs. Magnitude</span>
+                        <strong id="neo-magnitude">—</strong>
+                    </div>
+                    <div class="neo-summary__item">
+                        <span class="label">Miss Distance</span>
+                        <strong id="neo-moid">—</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="slider-row">
+                    <label for="diameter_m">Asteroid Diameter (m)
+                        <output id="diameter-output">0</output>
+                    </label>
+                    <input type="range" id="diameter_m" name="diameter_m" min="50" max="1200" step="10" value="210" />
+                </div>
+                <div class="slider-row">
+                    <label for="velocity_kms">Impact Velocity (km/s)
+                        <output id="velocity-output">0</output>
+                    </label>
+                    <input type="range" id="velocity_kms" name="velocity_kms" min="5" max="70" step="0.5" value="21.5" />
+                </div>
+                <div class="slider-row">
+                    <label for="deflection_delta_v">Deflection ΔV (m/s)
+                        <output id="delta-v-output">0</output>
+                    </label>
+                    <input type="range" id="deflection_delta_v" name="deflection_delta_v" min="0" max="8000" step="50" value="0" />
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <div id="defense-countdown" aria-live="polite"></div>
+            </div>
+        </form>
+    </section>
+
+    <section id="visualisation-columns">
+        <article class="panel">
+            <h2>Impact Footprint</h2>
+            <div id="map"></div>
+            <div class="metric-grid">
+                <div class="metric-card">
+                    <h3>Impact Energy</h3>
+                    <p id="energy-output">0 MT</p>
+                </div>
+                <div class="metric-card">
+                    <h3>Crater Diameter</h3>
+                    <p id="crater-output">0 km</p>
+                </div>
+                <div class="metric-card">
+                    <h3>Seismic Magnitude</h3>
+                    <p id="seismic-output">0 Mw</p>
+                </div>
+                <div class="metric-card">
+                    <h3>MOID</h3>
+                    <p id="moid-output">0 km</p>
+                </div>
+            </div>
+            <div class="environment-grid">
+                <div class="environment-card">
+                    <h3>Elevation</h3>
+                    <p id="elevation-output">—</p>
+                </div>
+                <div class="environment-card">
+                    <h3>Seismic Risk</h3>
+                    <p id="seismic-risk-output">—</p>
+                </div>
+                <div class="environment-card">
+                    <h3>Zone</h3>
+                    <p id="coastal-output">—</p>
+                </div>
+            </div>
+            <div id="defense-message" class="defense-message" aria-live="assertive"></div>
+        </article>
+    </section>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% endblock %}
