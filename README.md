@@ -1,37 +1,50 @@
-# 🛡️ AstroShield Planetary Defense Simulator: Project Brief
+<div align="center">
+	<h1>AstroShield Planetary Defense Simulator</h1>
+</div>
 
-This challenge requires developing **AstroShield**, an interactive, user-friendly tool to simulate asteroid impact scenarios, predict consequences, and evaluate mitigation strategies against a threat like **"Impactor-2025."**
+AstroShield is a planetary defense dashboard that ingests live asteroid telemetry from NASA, blends it with environmental context from USGS feeds, and exposes the results through an interactive mission control interface. The platform delivers three core capabilities: it forecasts impact consequences, simulates mitigation maneuvers, and communicates the science in a way that policy teams and learners can understand at a glance.
 
-## 💡 Your Mission: The "What If?" Simulator
+The backend is written in Python using Flask, Flask-Cors, requests, and SciPy. It normalises the NASA NEO payload, computes kinetic energy, crater scaling, seismic magnitude, and orbital deflection metrics, then provides deterministic mock data whenever APIs rate-limit. The frontend runs in JavaScript with Leaflet, D3, GSAP, and Three.js, combining geospatial heatmaps, animated crater visualisations, and a fully navigable orbital lab. Together these layers keep the experience resilient and scientifically grounded.
 
-Your primary goal is to **combine siloed data** (NASA space science and USGS Earth science) into one user-friendly platform that serves three key functions for both public and policy-maker audiences:
+<div align="center">
+	<img src="screenshots/img1.png" alt="Mission Control Dashboard" width="820">
+</div>
 
-| Core Function | Description | Key Questions Answered |
-| :--- | :--- | :--- |
-| **Prediction** | Model the effects of an unmitigated impact scenario. | Where will it hit? How big will the explosion/crater be? What are the secondary effects (Tsunami, Earthquake)? |
-| **Mitigation** | Evaluate the effectiveness of planetary defense maneuvers. | How much of a push ($\Delta V$) do we need to make it miss? What does the new, safer orbit look like? |
-| **Communication** | Translate complex science into accessible, actionable insight. | Can the user understand the risk in 5 minutes? (Using 3D/2D maps, clear metrics, and educational tooltips). |
+<div align="center">
+	<img src="screenshots/img2.png" alt="Defense Mode Simulation" width="820">
+</div>
 
-***
+<div align="center">
+	<img src="screenshots/img3.png" alt="Orbital Lab Visualization" width="820">
+</div>
 
-## 🚧 The Core Challenges You Must Overcome
+### Features
 
-| Challenge Area | Problem to Solve | Required Solution in Your Tool |
-| :--- | :--- | :--- |
-| **Data Integration** | NASA (asteroid parameters) and USGS (environmental/geological data) are separate datasets. | **Mock or Fetch:** Create a single **Flask API endpoint** that combines the required parameters from a mocked NASA NEO data source and a mocked USGS geological data source. |
-| **Scientific Modeling** | Calculating physical effects (Kinetic Energy, Orbital Mechanics) is complex. | **Physics Engine:** Implement simplified, single-line math expressions for: 1. **Kinetic Energy** (in Megatons), 2. **Crater Diameter** (Crater Scaling), and 3. **Seismic Magnitude** ($M_w$). Use **Keplerian mechanics** (simplified) to visualize orbit changes. |
-| **Visualization & UX** | Making 3D orbits and complex crater sizes clear and accessible to the public. | **Dual Visualization:** Use **Three.js** for the animated $\mathbf{3D}$ orbital path (pre/post-deflection) and **Leaflet/D3.js** for a $\mathbf{2D}$ map showing the impact point, the crater size, and the Tsunami Risk zone. |
-| **Decision Support** | Policy-makers need a rapid assessment of defense efficacy. | **Mitigation Sliders:** Allow users to adjust a $\mathbf{\Delta V}$ (change in velocity) slider to see the $\mathbf{immediate\ impact}$ on the crater size and the orbital path animation. |
-| **Engagement** | The tool needs to hold the user's attention and curiosity. | **Gamification:** Include a **"Defend Earth Mode"** where users race a timer to find the minimum $\Delta V$ needed to reduce the impact to a safe level. |
+AstroShield offers a live mission control view that shows asteroid specifics, impact location, crater size, seismic magnitude, and readiness alerts. Defense Mode lets analysts tune delta-v inputs, watch mitigation outcomes, and track whether the asteroid still intersects Earth. The Orbital Lab provides a 3D playground for orbital trajectories, including pre- and post-deflection paths.
 
-***
+### Data and Integrations
 
-## 🛠️ Key Technical and Scientific Tools
+NASA’s Near Earth Object Web Service supplies asteroid telemetry, while the NASA JPL Small-Body Database enriches orbital metadata. USGS elevation and geoserve endpoints provide ground and seismic context. OpenStreetMap tiles power the impact basemap. Libraries include Leaflet, D3, GSAP, Three.js with OrbitControls, and python-pptx for presentations.
 
-| Tool/Concept | Purpose in AstroShield | Why It's Necessary |
-| :--- | :--- | :--- |
-| **Python/Flask** | Backend API to perform all the scientific math calculations and data mocking. | Necessary for scientific rigor and server-side logic before visualization. |
-| **Three.js** | JavaScript library for the **3D visualization** of the asteroid's orbit. | Gives a dynamic, engaging view of the asteroid's path relative to Earth. |
-| **Leaflet/D3.js** | JavaScript for the **2D impact map** and drawing the scale of the crater. | Essential for showing local, geo-referenced consequences and Tsunami risks. |
-| **Kinetic Energy Formula** | $E_k = \frac{1}{2} m V_{\text{eff}}^2$ (mass $\times$ effective velocity squared). | The fundamental calculation that drives all impact consequence results. |
-| **$\Delta V$ (Delta-V)** | The velocity change required to deflect the asteroid. | The core input parameter that simulates your defense strategy. |
+### Creative Direction
+
+AstroShield’s interface mirrors a mission control console with cinematic yet purposeful visuals. The goal was to combine rigorous physics with explainable storytelling: all graphics respond to deterministic calculations, mock fallbacks keep the view alive during outages, and UI copy treats users as collaborators, not spectators.
+
+### Getting Started
+
+1. Create a virtual environment and install dependencies using the requirements file in `astroshield/requirements.txt`.
+2. Define NASA API credentials in `.env` or rely on the default `DEMO_KEY` for quick demos.
+3. Launch the Flask app via `python app.py` from the `astroshield` directory.
+4. Open the dashboard at `http://localhost:5000` to explore Mission Control, Defense Mode, and the Orbital Lab.
+
+### Repository Guide
+
+`astroshield/backend` contains the data orchestration layer, NASA/USGS clients, and the physics engine. `astroshield/static/js` holds the Mission Control, Defense Mode, and Orbital Lab scripts. `docs` includes presentation assets plus the automated data-flow slide generator located at `docs/generate_dataflow_slide.py`.
+
+### Contributing
+
+Contributions should maintain the balance between accuracy and performance. Please open an issue describing proposed changes, ensure tests and linting pass, and accompany new features with relevant documentation updates.
+
+### License
+
+AstroShield is released under the Apache License. See `LICENSE` for details.
