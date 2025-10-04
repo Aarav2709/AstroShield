@@ -9,6 +9,10 @@ const MIN_RADIUS = 3;
 const MAX_RADIUS = 28;
 const DRAG_SENSITIVITY = 0.0065;
 const ZOOM_SENSITIVITY = 0.18;
+const EARTH_TEXTURE_PATH = '/static/textures/earth-day.jpg';
+const EARTH_REMOTE_FALLBACK = 'https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73909/world.topo.bathy.200412.1024x512.jpg';
+const CLOUD_OPACITY = 0.35;
+const CLOUD_ROTATION_SPEED = 0.0008;
 
 export default class OrbitalViz {
     constructor(containerId) {
@@ -26,6 +30,15 @@ export default class OrbitalViz {
         this.renderer.setSize(width, height);
         this.container.appendChild(this.renderer.domElement);
 
+        this._textureLoader = new THREE.TextureLoader();
+        if (this._textureLoader.setCrossOrigin) {
+            this._textureLoader.setCrossOrigin('anonymous');
+        }
+
+        this.maxAnisotropy = this.renderer.capabilities?.getMaxAnisotropy
+            ? this.renderer.capabilities.getMaxAnisotropy()
+            : 4;
+
         this.viewTarget = new THREE.Vector3(0, 0, 0);
         this.cameraRig = {
             spherical: new THREE.Spherical(11, Math.PI / 2.35, Math.PI / 8),
@@ -37,6 +50,7 @@ export default class OrbitalViz {
 
         this._initLights();
         this._initBodies();
+    this._loadEarthTexture();
 
         this._bindInteractions();
         this._updateCameraFromSpherical();
@@ -44,6 +58,7 @@ export default class OrbitalViz {
         this.baselineOrbit = null;
         this.deflectedOrbit = null;
         this.asteroidMarker = null;
+    this.cloudMesh = null;
 
         this._animate = this._animate.bind(this);
         requestAnimationFrame(this._animate);
@@ -58,13 +73,16 @@ export default class OrbitalViz {
     }
 
     _initBodies() {
-        const earthGeometry = new THREE.SphereGeometry(1, 32, 32);
-        const earthMaterial = new THREE.MeshPhongMaterial({
+        const earthGeometry = new THREE.SphereGeometry(1, 64, 64);
+        this.earthMaterial = new THREE.MeshPhongMaterial({
             color: 0x1d8bff,
-            emissive: 0x06264d,
-            shininess: 20,
+            specular: new THREE.Color('#262626'),
+            shininess: 12,
         });
-        this.earth = new THREE.Mesh(earthGeometry, earthMaterial);
+        const proceduralTexture = this._createProceduralEarthTexture();
+        this.earthMaterial.map = proceduralTexture;
+        this.earthMaterial.needsUpdate = true;
+        this.earth = new THREE.Mesh(earthGeometry, this.earthMaterial);
         this.scene.add(this.earth);
 
         const orbitGeometry = new THREE.RingGeometry(0.99, 1.01, 96);
@@ -77,6 +95,11 @@ export default class OrbitalViz {
         const earthOrbit = new THREE.Mesh(orbitGeometry, orbitMaterial);
         earthOrbit.rotation.x = Math.PI / 2;
         this.scene.add(earthOrbit);
+
+        this.cloudMesh = this._createCloudLayer();
+        if (this.cloudMesh) {
+            this.scene.add(this.cloudMesh);
+        }
     }
 
     _onResize() {
@@ -97,6 +120,9 @@ export default class OrbitalViz {
         this.earth.rotation.y += 0.0025;
         if (this.asteroidMarker) {
             this.asteroidMarker.rotation.y += 0.01;
+        }
+        if (this.cloudMesh) {
+            this.cloudMesh.rotation.y += CLOUD_ROTATION_SPEED;
         }
         this.renderer.render(this.scene, this.camera);
         requestAnimationFrame(this._animate);
@@ -159,6 +185,317 @@ export default class OrbitalViz {
         this._needsCameraUpdate = true;
     }
 
+    _loadEarthTexture() {
+        const applyTexture = (texture, sourceLabel) => {
+            this._applyTextureSettings(texture);
+            this.earthMaterial.map = texture;
+            this.earthMaterial.needsUpdate = true;
+            if (sourceLabel) {
+                console.info(`[OrbitalViz] Earth texture loaded from ${sourceLabel}.`);
+            }
+        };
+
+        const handleProceduralFallback = () => {
+            console.warn('[OrbitalViz] Using procedural Earth texture fallback.');
+            applyTexture(this._createProceduralEarthTexture(), 'procedural generator');
+        };
+
+        const tryRemoteFallback = () => {
+            console.warn('[OrbitalViz] Local Earth texture missing; attempting NASA Blue Marble fallback.');
+            this._textureLoader.load(
+                EARTH_REMOTE_FALLBACK,
+                (texture) => applyTexture(texture, 'NASA Blue Marble (remote)'),
+                undefined,
+                handleProceduralFallback,
+            );
+        };
+
+        this._textureLoader.load(
+            EARTH_TEXTURE_PATH,
+            (texture) => applyTexture(texture, 'local asset'),
+            undefined,
+            tryRemoteFallback,
+        );
+    }
+
+    _applyTextureSettings(texture) {
+        if (texture.anisotropy !== undefined && this.maxAnisotropy) {
+            texture.anisotropy = Math.min(texture.anisotropy || this.maxAnisotropy, this.maxAnisotropy);
+        }
+        if ('colorSpace' in texture && THREE.SRGBColorSpace) {
+            texture.colorSpace = THREE.SRGBColorSpace;
+        } else if ('encoding' in texture && THREE.sRGBEncoding !== undefined) {
+            texture.encoding = THREE.sRGBEncoding;
+        }
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        if (texture.repeat) {
+            texture.repeat.set(1, 1);
+        }
+        texture.needsUpdate = true;
+    }
+
+    _createProceduralEarthTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+
+        const oceanGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        oceanGradient.addColorStop(0, '#02223d');
+        oceanGradient.addColorStop(1, '#044a7f');
+        ctx.fillStyle = oceanGradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const drawContinent = (points, fillStyle) => {
+            if (!points.length) return;
+            ctx.beginPath();
+            const [firstLon, firstLat] = points[0];
+            ctx.moveTo(
+                ((firstLon + 180) / 360) * canvas.width,
+                ((90 - firstLat) / 180) * canvas.height,
+            );
+            for (let i = 1; i < points.length; i += 1) {
+                const [lon, lat] = points[i];
+                ctx.lineTo(
+                    ((lon + 180) / 360) * canvas.width,
+                    ((90 - lat) / 180) * canvas.height,
+                );
+            }
+            ctx.closePath();
+            ctx.fillStyle = fillStyle;
+            ctx.fill();
+        };
+
+        const landColor = '#2f9f6e';
+        const desertColor = '#c7a76d';
+        const tundraColor = '#7fb5c7';
+
+        drawContinent(
+            [
+                [-168, 72],
+                [-140, 65],
+                [-125, 61],
+                [-120, 50],
+                [-118, 39],
+                [-105, 32],
+                [-95, 20],
+                [-85, 17],
+                [-78, 26],
+                [-75, 40],
+                [-66, 43],
+                [-60, 52],
+                [-72, 64],
+                [-100, 72],
+            ],
+            landColor,
+        );
+
+        drawContinent(
+            [
+                [-80, 12],
+                [-72, 9],
+                [-68, 4],
+                [-65, -4],
+                [-70, -18],
+                [-76, -25],
+                [-80, -35],
+                [-62, -56],
+                [-54, -50],
+                [-53, -32],
+                [-60, -12],
+                [-72, -4],
+            ],
+            landColor,
+        );
+
+        drawContinent(
+            [
+                [-10, 72],
+                [15, 72],
+                [45, 65],
+                [72, 56],
+                [90, 48],
+                [110, 45],
+                [130, 35],
+                [142, 25],
+                [146, 8],
+                [120, 5],
+                [105, 8],
+                [90, 20],
+                [75, 22],
+                [60, 30],
+                [40, 36],
+                [25, 45],
+                [10, 50],
+                [-12, 58],
+                [-24, 65],
+            ],
+            landColor,
+        );
+
+        drawContinent(
+            [
+                [18, 37],
+                [40, 35],
+                [42, 23],
+                [33, 5],
+                [18, -5],
+                [5, 4],
+                [-5, 12],
+                [-10, 22],
+                [-2, 32],
+            ],
+            landColor,
+        );
+
+        drawContinent(
+            [
+                [45, 28],
+                [55, 32],
+                [62, 28],
+                [70, 20],
+                [75, 12],
+                [70, 6],
+                [60, 8],
+                [50, 18],
+            ],
+            desertColor,
+        );
+
+        drawContinent(
+            [
+                [44, -10],
+                [50, -12],
+                [54, -18],
+                [52, -28],
+                [46, -32],
+                [40, -28],
+                [38, -18],
+            ],
+            landColor,
+        );
+
+        drawContinent(
+            [
+                [120, -10],
+                [130, -12],
+                [138, -20],
+                [142, -32],
+                [150, -38],
+                [154, -44],
+                [150, -50],
+                [138, -40],
+                [128, -32],
+                [122, -20],
+            ],
+            landColor,
+        );
+
+        drawContinent(
+            [
+                [-46, 78],
+                [-34, 75],
+                [-28, 70],
+                [-42, 68],
+                [-52, 70],
+            ],
+            tundraColor,
+        );
+
+        const polarGradientNorth = ctx.createRadialGradient(
+            canvas.width / 2,
+            canvas.height * 0.1,
+            0,
+            canvas.width / 2,
+            canvas.height * 0.1,
+            canvas.height * 0.35,
+        );
+        polarGradientNorth.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
+        polarGradientNorth.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = polarGradientNorth;
+        ctx.fillRect(0, 0, canvas.width, canvas.height / 2);
+
+        const polarGradientSouth = ctx.createRadialGradient(
+            canvas.width / 2,
+            canvas.height * 0.9,
+            0,
+            canvas.width / 2,
+            canvas.height * 0.9,
+            canvas.height * 0.35,
+        );
+        polarGradientSouth.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
+        polarGradientSouth.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = polarGradientSouth;
+        ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
+
+        ctx.globalAlpha = 0.08;
+        ctx.fillStyle = '#ffffff';
+        for (let i = 0; i < 180; i += 1) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const radius = Math.random() * 80 + 20;
+            const gradient = ctx.createRadialGradient(x, y, radius * 0.2, x, y, radius);
+            gradient.addColorStop(0, 'rgba(255,255,255,0.8)');
+            gradient.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        const gridGradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+        gridGradient.addColorStop(0, 'rgba(255,255,255,0.045)');
+        gridGradient.addColorStop(0.5, 'rgba(255,255,255,0.08)');
+        gridGradient.addColorStop(1, 'rgba(255,255,255,0.045)');
+        ctx.fillStyle = gridGradient;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.globalCompositeOperation = 'source-over';
+
+        const texture = new THREE.CanvasTexture(canvas);
+        this._applyTextureSettings(texture);
+        return texture;
+    }
+
+    _createCloudLayer() {
+        const canvas = this._generateCloudTexture(1024, 512);
+        if (!canvas) return null;
+        const texture = new THREE.CanvasTexture(canvas);
+        this._applyTextureSettings(texture);
+        const material = new THREE.MeshLambertMaterial({
+            map: texture,
+            transparent: true,
+            opacity: CLOUD_OPACITY,
+            depthWrite: false,
+        });
+        const geometry = new THREE.SphereGeometry(1.015, 64, 64);
+        return new THREE.Mesh(geometry, material);
+    }
+
+    _generateCloudTexture(width, height) {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, width, height);
+        const cloudCount = 260;
+        for (let i = 0; i < cloudCount; i += 1) {
+            const x = Math.random() * width;
+            const y = Math.random() * height;
+            const radius = Math.random() * 90 + 35;
+            const gradient = ctx.createRadialGradient(x, y, radius * 0.3, x, y, radius);
+            gradient.addColorStop(0, 'rgba(255,255,255,0.55)');
+            gradient.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        return canvas;
+    }
+
     _createOrbitLine(points, color) {
         const vectors = points.map((p) => new THREE.Vector3(p.x, p.y, p.z).multiplyScalar(SCALE_FACTOR));
         const geometry = new THREE.BufferGeometry().setFromPoints(vectors);
@@ -195,10 +532,14 @@ export default class OrbitalViz {
             object3d.geometry.dispose();
         }
         if (object3d.material) {
+            const disposeMaterial = (material) => {
+                material?.map?.dispose?.();
+                material?.dispose?.();
+            };
             if (Array.isArray(object3d.material)) {
-                object3d.material.forEach((mat) => mat.dispose?.());
+                object3d.material.forEach(disposeMaterial);
             } else {
-                object3d.material.dispose?.();
+                disposeMaterial(object3d.material);
             }
         }
         this.scene.remove(object3d);
