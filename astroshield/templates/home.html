@@ -9,7 +9,6 @@
         <p>AstroShield is your mission console for modelling near-Earth asteroid encounters, exploring mitigation tactics, and understanding the science that keeps our world safe.</p>
         <div class="landing-hero__actions">
             <a class="primary-button" href="{{ url_for('mission_control') }}">Launch Mission Control</a>
-            <a class="ghost-button" href="{{ url_for('orbital_lab') }}">Explore Orbital Lab</a>
         </div>
     </div>
     <div class="landing-hero__callout">
@@ -42,6 +41,43 @@
                 <h3>Data Backbone</h3>
                 <p>Backed by NASA NEO catalogues with deterministic fallbacks, delivering resilient simulations even when offline.</p>
                 <a href="https://www.nasa.gov/" target="_blank" rel="noopener" class="feature-card__link">Learn about NASA NEOs →</a>
+            </article>
+        </div>
+    </section>
+
+    <section class="pillars-section" aria-labelledby="pillars-title">
+        <h2 id="pillars-title">Core Functions</h2>
+        <div class="pillars-grid">
+            <article class="pillar-card">
+                <header>
+                    <h3>Prediction</h3>
+                    <p class="pillar-card__summary">Model the effects of an unmitigated impact scenario.</p>
+                </header>
+                <ul>
+                    <li>Where will it hit?</li>
+                    <li>How big will the explosion or crater be?</li>
+                    <li>What are the secondary effects (tsunami, earthquake)?</li>
+                </ul>
+            </article>
+            <article class="pillar-card">
+                <header>
+                    <h3>Mitigation</h3>
+                    <p class="pillar-card__summary">Evaluate the effectiveness of planetary defense maneuvers.</p>
+                </header>
+                <ul>
+                    <li>How much ΔV do we need to make it miss?</li>
+                    <li>What does the new, safer orbit look like?</li>
+                </ul>
+            </article>
+            <article class="pillar-card">
+                <header>
+                    <h3>Communication</h3>
+                    <p class="pillar-card__summary">Translate complex science into accessible, actionable insight.</p>
+                </header>
+                <ul>
+                    <li>Can the user grasp the risk in five minutes?</li>
+                    <li>Use 3D/2D maps, clear metrics, and educational tooltips.</li>
+                </ul>
             </article>
         </div>
     </section>
