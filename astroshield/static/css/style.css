@@ -518,28 +518,63 @@ input[type="range"] {
 
 .defense-message {
     margin-top: 1rem;
-    text-align: center;
     padding: 0.85rem 1rem;
     border-radius: 12px;
     font-family: var(--font-heading);
     letter-spacing: 0.08em;
     display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    text-transform: uppercase;
 }
 
 .defense-message.visible {
-    display: block;
+    display: inline-flex;
+}
+
+.defense-message__label {
+    font-size: clamp(0.75rem, 2vw, 0.88rem);
+}
+
+.defense-message__percent {
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.35rem 0.6rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    letter-spacing: 0.06em;
+}
+
+.defense-message__detail {
+    flex-basis: 100%;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    opacity: 0.72;
+    text-transform: none;
 }
 
 .defense-success {
     background: rgba(110, 255, 169, 0.18);
-    border: 1px solid var(--accent-success);
+    border: 1px solid rgba(110, 255, 169, 0.45);
     color: var(--accent-success);
 }
 
+.defense-success .defense-message__percent {
+    background: rgba(110, 255, 169, 0.24);
+    color: var(--bg-panel);
+}
+
 .defense-failure {
-    background: rgba(255, 77, 77, 0.2);
-    border: 1px solid var(--accent-warning);
+    background: rgba(255, 77, 77, 0.18);
+    border: 1px solid rgba(255, 77, 77, 0.45);
     color: var(--accent-warning);
+}
+
+.defense-failure .defense-message__percent {
+    background: rgba(255, 77, 77, 0.24);
+    color: var(--bg-panel);
 }
 
 footer {

@@ -11,8 +11,10 @@ export default class DefenseMode {
         this.onExpire = onExpire;
 
         this.active = false;
+        this.activeCountdown = false;
         this.countdownTween = null;
         this.baselineCraterKm = null;
+        this.successThreshold = 0.12;
         this.explicitScenario = {
             diameter_m: 460,
             velocity_kms: 28,
@@ -33,6 +35,7 @@ export default class DefenseMode {
         if (this.active) return this.explicitScenario;
         this.active = true;
         this.baselineCraterKm = null;
+        this.activeCountdown = true;
         this._resetMessage();
         this.onLockInputs?.();
         this._beginCountdown();
@@ -40,8 +43,10 @@ export default class DefenseMode {
     }
 
     cancel() {
+        if (!this.active && !this.activeCountdown) return;
         this.active = false;
         this.baselineCraterKm = null;
+        this.activeCountdown = false;
         this._stopCountdown();
         this._resetMessage();
         this.onUnlockInputs?.();
@@ -49,20 +54,30 @@ export default class DefenseMode {
 
     recordBaseline(craterKm) {
         this.baselineCraterKm = craterKm;
+        if (this.active) {
+            this._showHint('Baseline impact locked', 'neutral', 'Increase ΔV to begin deflection attempts.');
+        }
     }
 
     evaluateAttempt({ craterKm, deltaV }) {
         if (!this.active || this.baselineCraterKm === null) return false;
-        if (deltaV <= 0) return false;
+        if (deltaV <= 0) {
+            this._showHint('Increase ΔV to attempt a deflection.');
+            return false;
+        }
         const reduction = 1 - craterKm / this.baselineCraterKm;
-        const success = reduction >= 0.5;
-        this._resolve(success);
-        return success;
+        const percent = Math.max(0, Math.round(reduction * 100));
+        if (reduction >= this.successThreshold) {
+            this._resolve(true, { reductionPercent: percent });
+            return true;
+        }
+        this._resolve(false, { reductionPercent: percent });
+        return false;
     }
 
     handleTimeout() {
-        if (!this.active) return;
-        this._resolve(false, true);
+        if (!this.activeCountdown) return;
+        this._resolve(false, { fromTimeout: true });
     }
 
     _beginCountdown() {
@@ -89,6 +104,7 @@ export default class DefenseMode {
             this.countdownTween.kill();
             this.countdownTween = null;
         }
+        this.activeCountdown = false;
     }
 
     _resetMessage() {
@@ -96,19 +112,95 @@ export default class DefenseMode {
         this.messageEl.textContent = "";
     }
 
-    _resolve(success, fromTimeout = false) {
+    _showHint(text, tone = 'failure', detail = null) {
+        this._renderMessage({ tone, text, detail });
+        this._focusMessage();
+    }
+
+    _resolve(success, { fromTimeout = false, reductionPercent = null } = {}) {
         this.active = false;
+        this.activeCountdown = false;
         this._stopCountdown();
         this.onUnlockInputs?.();
-        this.messageEl.classList.add("visible");
         if (success) {
-            this.messageEl.classList.add("defense-success");
-            this.messageEl.textContent = "Defense successful! Earth is safe.";
+            this._renderMessage({
+                tone: 'success',
+                text: 'Defense successful',
+                percent: reductionPercent,
+                detail: 'Earth is safe.'
+            });
+            this.countdownEl.textContent = "Defense successful!";
         } else {
-            this.messageEl.classList.add("defense-failure");
-            this.messageEl.textContent = fromTimeout
-                ? "Defense failed: countdown reached zero."
-                : "Defense failed: insufficient mitigation.";
+            if (fromTimeout) {
+                this._renderMessage({
+                    tone: 'failure',
+                    text: 'Defense failed',
+                    detail: 'Countdown reached zero.'
+                });
+            } else if (reductionPercent !== null) {
+                this._renderMessage({
+                    tone: 'failure',
+                    text: 'Defense failed',
+                    percent: reductionPercent,
+                    detail: 'Crater reduction too small.'
+                });
+            } else {
+                this._renderMessage({
+                    tone: 'failure',
+                    text: 'Defense failed',
+                    detail: 'Insufficient mitigation.'
+                });
+            }
+            this.countdownEl.textContent = "Defense failed.";
+        }
+        this._focusMessage();
+    }
+
+    _renderMessage({ tone = 'neutral', text, percent = null, detail = null }) {
+        if (!this.messageEl) return;
+        this.messageEl.classList.add('visible');
+        this.messageEl.classList.remove('defense-success', 'defense-failure');
+        if (tone === 'success') {
+            this.messageEl.classList.add('defense-success');
+        } else if (tone === 'failure') {
+            this.messageEl.classList.add('defense-failure');
+        }
+
+        while (this.messageEl.firstChild) {
+            this.messageEl.removeChild(this.messageEl.firstChild);
+        }
+
+        if (text) {
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'defense-message__label';
+            labelSpan.textContent = text;
+            this.messageEl.appendChild(labelSpan);
+        }
+
+        if (typeof percent === 'number' && Number.isFinite(percent)) {
+            const percentSpan = document.createElement('span');
+            percentSpan.className = 'defense-message__percent';
+            percentSpan.textContent = `${percent}%`;
+            this.messageEl.appendChild(percentSpan);
+        }
+
+        if (detail) {
+            const detailSpan = document.createElement('span');
+            detailSpan.className = 'defense-message__detail';
+            detailSpan.textContent = detail;
+            this.messageEl.appendChild(detailSpan);
+        }
+    }
+
+    _focusMessage() {
+        if (!this.messageEl) return;
+        this.messageEl.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+        if (gsapRef) {
+            gsapRef.fromTo(
+                this.messageEl,
+                { opacity: 0.35, scale: 0.96 },
+                { opacity: 1, scale: 1, duration: 0.35, ease: "power2.out" }
+            );
         }
     }
 }

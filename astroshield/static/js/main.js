@@ -9,6 +9,8 @@ if (gsapRef && TextPlugin) {
 }
 
 const DEFAULT_COORDS = { lat: 34.05, lon: -118.25 };
+const TNT_JOULES = 4.184e15;
+const ASTEROID_DENSITY = 3000;
 
 const OFFLINE_BASELINE = {
     inputs: {
@@ -163,6 +165,50 @@ function collectPayload(overrides = {}) {
     };
 }
 
+function computeApproximateMass(diameterMeters, templateMassKg) {
+    if (templateMassKg) return templateMassKg;
+    const radius = Math.max(diameterMeters || 0, 0) / 2;
+    const volume = (4 / 3) * Math.PI * radius ** 3;
+    return volume * ASTEROID_DENSITY;
+}
+
+function estimateDeflectionOutcome(template, payload) {
+    if (!template) return null;
+    const clone = JSON.parse(JSON.stringify(template));
+    clone.inputs = { ...template.inputs, ...payload };
+
+    const massKg = computeApproximateMass(payload?.diameter_m, template.energy?.mass_kg);
+    const velocityKms = payload?.velocity_kms ?? template.inputs?.velocity_kms ?? 0;
+    const deltaV = payload?.deflection_delta_v ?? 0;
+    const effectiveVelocityMs = Math.max(velocityKms * 1000 - deltaV, 1);
+    const energyJoules = 0.5 * massKg * effectiveVelocityMs ** 2;
+    const energyMt = energyJoules / TNT_JOULES;
+    const craterKm = Math.max(0, 0.11 * Math.cbrt(Math.max(energyMt, 0)));
+    const seismicMagnitude = Math.max(0, 0.67 * Math.log10(Math.max(energyJoules, 1)) - 5.8);
+
+    clone.energy = {
+        mass_kg: massKg,
+        effective_velocity_ms: effectiveVelocityMs,
+        energy_joules: energyJoules,
+        energy_mt: energyMt,
+    };
+
+    clone.impact_effects = {
+        ...template.impact_effects,
+        crater_diameter_km: craterKm,
+        seismic_magnitude: seismicMagnitude,
+    };
+
+    if (clone.orbital_solution) {
+        const baselineMoid = clone.orbital_solution.baseline_moid_km ?? clone.orbital_solution.deflected_moid_km;
+        const adjustmentFactor = Math.min(Math.max(deltaV / (velocityKms * 1000 || 1), -0.8), 0.8);
+        const moidChange = (clone.orbital_solution.moid_change_km ?? 0) * adjustmentFactor || 0;
+        clone.orbital_solution.deflected_moid_km = Math.max(0, (baselineMoid ?? 0) - moidChange);
+    }
+
+    return clone;
+}
+
 function bindTooltips() {
     document.querySelectorAll('.info-card').forEach((card) => {
         const trigger = card.querySelector('.tooltip-trigger');
@@ -214,11 +260,21 @@ async function runSimulation(overrides = {}, { skipDefenseCheck = false } = {}) 
         return data;
     } catch (error) {
         console.error('Simulation error', error);
-        messageEl.classList.add('visible', 'defense-failure');
-        messageEl.textContent = 'Simulation error. Please retry.';
         const fallback = lastSimulationData || OFFLINE_BASELINE;
-        if (fallback) {
-            renderSimulation(fallback, { skipDefenseCheck: true });
+        const isDefenseActive = defenseMode.isActive();
+        const approximated = isDefenseActive ? estimateDeflectionOutcome(fallback, payload) : fallback;
+        messageEl.classList.add('visible');
+        messageEl.classList.remove('defense-success');
+        if (isDefenseActive) {
+            messageEl.classList.remove('defense-failure');
+            messageEl.textContent = 'Live data unavailable. Using onboard estimator for defense check.';
+        } else {
+            messageEl.classList.add('defense-failure');
+            messageEl.textContent = 'Connection issue detected. Showing cached simulation.';
+        }
+        if (approximated) {
+            renderSimulation(approximated, { skipDefenseCheck: !isDefenseActive });
+            lastSimulationData = approximated;
         }
         return null;
     } finally {
