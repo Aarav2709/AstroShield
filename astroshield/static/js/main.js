@@ -19,8 +19,8 @@ if (!missionRoot) {
     console.debug('Mission control script: container not found, skipping initialisation.');
 } else {
     const form = document.getElementById('impact-form');
-    const runButton = document.getElementById('run-simulation');
     const defenseButton = document.getElementById('defend-earth-button');
+    const statusBadge = document.getElementById('simulation-status');
     const countdownEl = document.getElementById('defense-countdown');
     const messageEl = document.getElementById('defense-message');
     const asteroidSelect = document.getElementById('asteroid-select');
@@ -51,7 +51,7 @@ if (!missionRoot) {
     const mapEl = document.getElementById('map');
     const orbitalCanvasEl = document.getElementById('orbital-canvas');
 
-    if (!form || !runButton || !defenseButton) {
+    if (!form || !defenseButton) {
         console.warn('Mission control layout missing required elements. Aborting initialisation.');
     } else {
         const impactViz = mapEl ? new ImpactViz('map') : null;
@@ -78,8 +78,18 @@ if (!missionRoot) {
             : null;
 
         let lastSimulationData = null;
+        let pendingSimulationHandle = null;
 
-        function updateSliderOutputs() {
+        function setStatus(message, { isBusy = false } = {}) {
+            if (!statusBadge) return;
+            statusBadge.textContent = message;
+            statusBadge.classList.toggle('is-busy', Boolean(isBusy));
+        }
+
+        setStatus('Auto-updates on change');
+
+        function updateSliderOutputs(arg = true) {
+            const shouldSchedule = typeof arg === 'boolean' ? arg : true;
             if (diameterInput && diameterOutput) {
                 diameterOutput.textContent = `${Number(diameterInput.value).toFixed(0)}`;
             }
@@ -89,6 +99,22 @@ if (!missionRoot) {
             if (deltaVInput && deltaVOutput) {
                 deltaVOutput.textContent = `${Number(deltaVInput.value).toFixed(0)}`;
             }
+            if (shouldSchedule) {
+                scheduleSimulation();
+            }
+        }
+
+        function scheduleSimulation(overrides = {}, options = {}) {
+            if (pendingSimulationHandle) {
+                clearTimeout(pendingSimulationHandle);
+            }
+            const overridesCopy = { ...overrides };
+            const optionsCopy = { ...options };
+            setStatus('Updating…', { isBusy: true });
+            pendingSimulationHandle = window.setTimeout(() => {
+                pendingSimulationHandle = null;
+                runSimulation(overridesCopy, optionsCopy);
+            }, 220);
         }
 
         function animateMetric(element, value, suffix, decimals = 1) {
@@ -223,7 +249,7 @@ if (!missionRoot) {
                 setInputValue(velocityInput, velocityKms);
             }
             setInputValue(deltaVInput, 0);
-            updateSliderOutputs();
+            updateSliderOutputs(false);
             updateNeoMetadataFromOption(option);
         }
 
@@ -235,7 +261,7 @@ if (!missionRoot) {
             if (neo.velocity_kms) {
                 setInputValue(velocityInput, neo.velocity_kms);
             }
-            updateSliderOutputs();
+            updateSliderOutputs(false);
         }
 
         function makeFallbackOption() {
@@ -287,9 +313,16 @@ if (!missionRoot) {
         }
 
         async function runSimulation(overrides = {}, { skipDefenseCheck = false, applyNeoDefaults = false } = {}) {
+            if (pendingSimulationHandle) {
+                clearTimeout(pendingSimulationHandle);
+                pendingSimulationHandle = null;
+            }
+
             const payload = collectPayload(overrides);
             const isOfflineAsteroid = payload.asteroid_id === 'Impactor-2025';
             const selectedOption = asteroidSelect?.selectedOptions?.[0];
+
+            setStatus('Updating…', { isBusy: true });
 
             if (isOfflineAsteroid) {
                 const offlineInputs = {
@@ -301,7 +334,7 @@ if (!missionRoot) {
                 setInputValue(diameterInput, offlineInputs.diameter_m);
                 setInputValue(velocityInput, offlineInputs.velocity_kms);
                 setInputValue(deltaVInput, offlineInputs.deflection_delta_v);
-                updateSliderOutputs();
+                updateSliderOutputs(false);
 
                 const offlineData = JSON.parse(JSON.stringify(OFFLINE_BASELINE));
                 offlineData.inputs = offlineInputs;
@@ -310,15 +343,12 @@ if (!missionRoot) {
 
                 renderSimulation(offlineData, { skipDefenseCheck: true });
                 lastSimulationData = offlineData;
-                runButton.disabled = false;
-                runButton.textContent = 'Run Simulation';
+                setStatus('Offline baseline ready', { isBusy: false });
                 clearStatusMessage();
                 return offlineData;
             }
 
             try {
-                runButton.disabled = true;
-                runButton.textContent = 'Calculating...';
                 const response = await fetch('/api/simulate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -334,6 +364,14 @@ if (!missionRoot) {
                 renderSimulation(data, { skipDefenseCheck });
                 lastSimulationData = data;
                 clearStatusMessage();
+                const source = data?.neo_reference?.source;
+                if (source === 'nasa') {
+                    setStatus('NASA data synced', { isBusy: false });
+                } else if (source === 'mock') {
+                    setStatus('Fallback model active', { isBusy: false });
+                } else {
+                    setStatus('Simulation updated', { isBusy: false });
+                }
                 return data;
             } catch (error) {
                 console.error('Simulation error', error);
@@ -356,11 +394,11 @@ if (!missionRoot) {
                     }
                     renderSimulation(approximated, { skipDefenseCheck: !isDefenseActive });
                     lastSimulationData = approximated;
+                    setStatus('Fallback model active', { isBusy: false });
+                    return approximated;
                 }
+                setStatus('Simulation unavailable', { isBusy: false });
                 return null;
-            } finally {
-                runButton.disabled = false;
-                runButton.textContent = 'Run Simulation';
             }
         }
 
@@ -448,7 +486,7 @@ if (!missionRoot) {
 
         form.addEventListener('submit', (event) => {
             event.preventDefault();
-            runSimulation();
+            scheduleSimulation();
         });
 
         if (diameterInput) diameterInput.addEventListener('input', updateSliderOutputs);
@@ -464,7 +502,7 @@ if (!missionRoot) {
                 asteroidSelect.dataset.lastSelection = asteroidSelect.value;
             }
             resetDefenseStateUI();
-            runSimulation({
+            scheduleSimulation({
                 asteroid_id: asteroidSelect?.value,
                 diameter_m: Number(diameterInput?.value ?? 0),
                 velocity_kms: Number(velocityInput?.value ?? 0),
@@ -478,7 +516,7 @@ if (!missionRoot) {
                 if (diameterInput) diameterInput.value = 210;
                 if (velocityInput) velocityInput.value = 21.5;
                 if (deltaVInput) deltaVInput.value = 0;
-                updateSliderOutputs();
+                updateSliderOutputs(false);
                 runSimulation();
                 return;
             }
@@ -487,7 +525,7 @@ if (!missionRoot) {
             if (diameterInput) diameterInput.value = scenario.diameter_m;
             if (velocityInput) velocityInput.value = scenario.velocity_kms;
             if (deltaVInput) deltaVInput.value = 0;
-            updateSliderOutputs();
+            updateSliderOutputs(false);
             await runSimulation({
                 diameter_m: scenario.diameter_m,
                 velocity_kms: scenario.velocity_kms,
@@ -498,12 +536,12 @@ if (!missionRoot) {
         });
 
         bindTooltips();
-        updateSliderOutputs();
+        updateSliderOutputs(false);
         lastSimulationData = OFFLINE_BASELINE;
         renderSimulation(OFFLINE_BASELINE, { skipDefenseCheck: true });
         loadAsteroidCatalog()
             .then(() => {
-                runSimulation({
+                scheduleSimulation({
                     asteroid_id: asteroidSelect?.value,
                     diameter_m: Number(diameterInput?.value ?? 0),
                     velocity_kms: Number(velocityInput?.value ?? 0),
