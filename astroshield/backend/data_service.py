@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import logging
 
@@ -111,6 +111,72 @@ class AstroDataService:
             entries.insert(0, default_entry)
         return entries
 
+    def get_health_snapshot(self, *, latitude: Optional[float] = None, longitude: Optional[float] = None) -> Dict[str, object]:
+        """Summarise the health of live integrations and fallbacks."""
+
+        services: Dict[str, Dict[str, object]] = {}
+
+        # NASA status
+        if self.nasa_client is None:
+            services["nasa_neo_api"] = {
+                "status": "disabled",
+                "detail": "Live NASA API access disabled; using deterministic mock data.",
+            }
+        else:
+            resolved_id = self._resolve_asteroid_id(self.default_asteroid_id)
+            try:
+                self.nasa_client.fetch_neo(resolved_id)
+                services["nasa_neo_api"] = {"status": "ok"}
+            except NASAAPIError as exc:  # pragma: no cover - relies on network
+                services["nasa_neo_api"] = {
+                    "status": "degraded",
+                    "detail": str(exc),
+                }
+            except Exception as exc:  # pragma: no cover - defensive
+                services["nasa_neo_api"] = {
+                    "status": "error",
+                    "detail": str(exc),
+                }
+
+        # USGS status
+        if self.usgs_client is None:
+            services["usgs_services"] = {
+                "status": "disabled",
+                "detail": "Live USGS services disabled; using deterministic mock data.",
+            }
+        else:
+            sample_lat = latitude if latitude is not None else 0.0
+            sample_lon = longitude if longitude is not None else 0.0
+            try:
+                report = self.usgs_client.build_environment_report(sample_lat, sample_lon)
+                if any(
+                    getattr(report, field) is not None
+                    for field in ("elevation_m", "is_coastal_zone", "tectonic_summary")
+                ):
+                    services["usgs_services"] = {"status": "ok"}
+                else:
+                    services["usgs_services"] = {
+                        "status": "degraded",
+                        "detail": "No usable data returned for sample location; mock data will be used.",
+                    }
+            except Exception as exc:  # pragma: no cover - defensive
+                services["usgs_services"] = {
+                    "status": "error",
+                    "detail": str(exc),
+                }
+
+        services["mock_data"] = {
+            "status": "ok",
+            "detail": "Deterministic fallback catalogue available.",
+        }
+
+        overall = _aggregate_overall_status(services.values())
+
+        return {
+            "status": overall,
+            "services": services,
+        }
+
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
@@ -156,6 +222,9 @@ class AstroDataService:
         except (IndexError, KeyError):
             return None
 
+    def _resolve_asteroid_id(self, friendly_id: str) -> str:
+        return self.alias_map.get(friendly_id, friendly_id)
+
     def _elements_from_dict(self, raw: Dict[str, Optional[float]]) -> OrbitalElements:
         return OrbitalElements(
             semi_major_axis_au=self._ensure_quantity(raw.get("semi_major_axis_au"), fallback=self.mock_manager.default_elements.semi_major_axis_au),
@@ -171,3 +240,16 @@ class AstroDataService:
         if value is None or value != value:  # NaN guard
             return fallback
         return float(value)
+
+
+def _aggregate_overall_status(service_snapshots: Iterable[Dict[str, object]]) -> str:
+    seen_statuses = {snapshot.get("status", "unknown") for snapshot in service_snapshots}
+    if "error" in seen_statuses:
+        return "error"
+    if "degraded" in seen_statuses:
+        return "degraded"
+    if "ok" in seen_statuses and seen_statuses.issubset({"ok", "disabled", "unknown"}):
+        return "ok"
+    if seen_statuses.issubset({"disabled", "unknown"}):
+        return "degraded"
+    return "unknown"

@@ -14,6 +14,7 @@ from .physics_engine import (
     calculate_seismic_magnitude,
     simulate_orbital_change,
 )
+from .reporting import build_simulation_briefing
 
 __all__ = [
     "MockDataManager",
@@ -25,4 +26,5 @@ __all__ = [
     "calculate_crater_scaling",
     "calculate_seismic_magnitude",
     "simulate_orbital_change",
+    "build_simulation_briefing",
 ]

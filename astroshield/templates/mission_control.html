@@ -3,18 +3,27 @@
 {% block title %}Mission Control · AstroShield{% endblock %}
 
 {% block content %}
-<header class="page-header">
-    <div>
-        <h1>Mission Control</h1>
-        <p class="subtitle">Tune asteroid parameters, simulate impact outcomes, and coordinate mitigation tactics from a streamlined operations deck.</p>
-    </div>
-    <div class="actions">
-        <button id="defend-earth-button" class="ghost-button">Defend Earth Mode</button>
-        <span id="simulation-status" class="auto-status" role="status" aria-live="polite">Auto-updates on change</span>
-    </div>
-</header>
+<section id="mission-control" class="mission-control-wrapper">
+    <header class="page-header">
+        <div>
+            <h1>Mission Control</h1>
+            <p class="subtitle">Tune asteroid parameters, simulate impact outcomes, and coordinate mitigation tactics from a streamlined operations deck.</p>
+        </div>
+        <div class="actions">
+            <button id="download-briefing-button" class="primary-button" type="button">Download Briefing</button>
+            <button id="defend-earth-button" class="ghost-button">Defend Earth Mode</button>
+            <span id="simulation-status" class="auto-status" role="status" aria-live="polite">Auto-updates on change</span>
+        </div>
+    </header>
 
-<main class="mission-layout">
+    <section class="mission-status-bar" aria-label="System health">
+        <div id="service-health" class="service-health" role="status" aria-live="polite" data-status="loading">
+            <div class="service-health__summary">Checking NASA &amp; USGS links…</div>
+            <ul class="service-health__list" aria-label="Service telemetry"></ul>
+        </div>
+    </section>
+
+    <main class="mission-layout">
     <section id="controls-panel">
         <h2>Mission Parameters</h2>
         <form id="impact-form">
@@ -118,6 +127,7 @@
         </article>
     </section>
 </main>
+</section>
 {% endblock %}
 
 {% block scripts %}

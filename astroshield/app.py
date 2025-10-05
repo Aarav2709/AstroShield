@@ -1,20 +1,36 @@
 """AstroShield Flask application entrypoint."""
 from __future__ import annotations
 
+from datetime import datetime
+from io import BytesIO
 from typing import Any, Dict
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_file
 from flask_cors import CORS
 
-from config import get_settings
-from backend import (
-    AstroDataService,
-    NEOData,
-    calculate_crater_scaling,
-    calculate_kinetic_energy,
-    calculate_seismic_magnitude,
-    simulate_orbital_change,
-)
+# Support execution both as a package (`python -m astroshield.app`) and as a script.
+try:  # pragma: no cover - import fallbacks are environment-specific
+    from config import get_settings  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover
+    from .config import get_settings
+try:  # pragma: no cover - runtime import flexibility
+    from backend import (  # type: ignore
+        AstroDataService,
+        calculate_crater_scaling,
+        calculate_kinetic_energy,
+        calculate_seismic_magnitude,
+        simulate_orbital_change,
+    )
+    from backend.reporting import build_simulation_briefing  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover
+    from .backend import (
+        AstroDataService,
+        calculate_crater_scaling,
+        calculate_kinetic_energy,
+        calculate_seismic_magnitude,
+        simulate_orbital_change,
+    )
+    from .backend.reporting import build_simulation_briefing
 
 
 settings = get_settings()
@@ -39,31 +55,12 @@ def _prepare_inputs(payload: Dict[str, Any]) -> Dict[str, float]:
     }
 
 
-@app.route("/")
-def home() -> str:
-    return render_template("home.html", active_page="home")
-
-
-@app.route("/mission-control")
-def mission_control() -> str:
-    return render_template("mission_control.html", active_page="mission-control")
-
-
-@app.route("/orbital-lab")
-def orbital_lab() -> str:
-    return render_template("orbital_lab.html", active_page="orbital-lab")
-
-
-@app.route("/api/simulate", methods=["POST"])
-def simulate() -> Any:
-    payload = request.get_json(silent=True) or {}
+def _run_simulation(payload: Dict[str, Any]) -> Dict[str, Any]:
     asteroid_id = payload.get("asteroid_id", settings.default_asteroid_id)
 
     user_inputs = _prepare_inputs(payload)
-    neo_data = data_service.get_neo_data(asteroid_id)
-    neo_reference = neo_data
+    neo_reference = data_service.get_neo_data(asteroid_id)
 
-    # Fill missing or zero inputs with reference values.
     diameter_m = user_inputs["diameter_m"] or float(neo_reference.diameter_m)
     velocity_kms = user_inputs["velocity_kms"] or float(neo_reference.velocity_kms)
     deflection_delta_v = user_inputs["deflection_delta_v"]
@@ -150,8 +147,60 @@ def simulate() -> Any:
         "environment": environment_payload,
         "orbital_solution": orbital_solution,
     }
+    return response
 
+
+@app.route("/")
+def home() -> str:
+    return render_template("home.html", active_page="home")
+
+
+@app.route("/mission-control")
+def mission_control() -> Any:
+    return render_template("mission_control.html", active_page="mission-control")
+
+
+@app.route("/orbital-lab")
+def orbital_lab() -> str:
+    return render_template("orbital_lab.html", active_page="orbital-lab")
+
+
+@app.route("/health", methods=["GET"])
+def health() -> Any:
+    lat = request.args.get("lat", type=float)
+    lon = request.args.get("lon", type=float)
+    snapshot = data_service.get_health_snapshot(latitude=lat, longitude=lon)
+    metadata = {
+        "default_asteroid_id": settings.default_asteroid_id,
+        "live_apis_enabled": settings.use_live_apis,
+        "simulation_sample_points": settings.simulation_sample_points,
+    }
+    response = {**snapshot, "metadata": metadata}
     return jsonify(response)
+
+
+@app.route("/api/simulate", methods=["POST"])
+def simulate() -> Any:
+    payload = request.get_json(silent=True) or {}
+    response = _run_simulation(payload)
+    return jsonify(response)
+
+
+@app.route("/api/export/scenario", methods=["POST"])
+def export_scenario() -> Any:
+    payload = request.get_json(silent=True) or {}
+    simulation = _run_simulation(payload)
+    deck_bytes = build_simulation_briefing(
+        simulation,
+        generated_at=datetime.utcnow(),
+    )
+    filename = f"astroshield_scenario_{simulation['inputs']['asteroid_id']}.pptx"
+    return send_file(
+        BytesIO(deck_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        as_attachment=True,
+        download_name=filename,
+    )
 
 
 @app.route("/api/asteroids", methods=["GET"])

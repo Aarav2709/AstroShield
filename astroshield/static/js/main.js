@@ -7,78 +7,87 @@ import {
     estimateDeflectionOutcome,
 } from './shared/simulationUtils.js';
 
-const gsapRef = window.gsap;
-const TextPlugin = window.TextPlugin;
-if (gsapRef && TextPlugin) {
-    gsapRef.registerPlugin(TextPlugin);
-}
+const gsapRef = window?.gsap ?? null;
 
-const missionRoot = document.querySelector('[data-page="mission-control"]');
+function initMissionControl() {
+    const missionControlSection = document.querySelector('#mission-control');
+    if (!missionControlSection) {
+        return;
+    }
 
-if (!missionRoot) {
-    console.debug('Mission control script: container not found, skipping initialisation.');
-} else {
-    const form = document.getElementById('impact-form');
-    const defenseButton = document.getElementById('defend-earth-button');
-    const statusBadge = document.getElementById('simulation-status');
-    const countdownEl = document.getElementById('defense-countdown');
-    const messageEl = document.getElementById('defense-message');
-    const asteroidSelect = document.getElementById('asteroid-select');
-
-    const neoNameEl = document.getElementById('neo-name');
-    const neoDesignationEl = document.getElementById('neo-designation');
-    const neoVelocityEl = document.getElementById('neo-velocity');
-    const neoDiameterEl = document.getElementById('neo-diameter');
-    const neoMagnitudeEl = document.getElementById('neo-magnitude');
-    const neoMoidEl = document.getElementById('neo-moid');
-
-    const diameterInput = document.getElementById('diameter_m');
-    const velocityInput = document.getElementById('velocity_kms');
-    const deltaVInput = document.getElementById('deflection_delta_v');
-
-    const diameterOutput = document.getElementById('diameter-output');
-    const velocityOutput = document.getElementById('velocity-output');
-    const deltaVOutput = document.getElementById('delta-v-output');
-
-    const energyOutput = document.getElementById('energy-output');
-    const craterOutput = document.getElementById('crater-output');
-    const seismicOutput = document.getElementById('seismic-output');
-    const moidOutput = document.getElementById('moid-output');
-    const elevationOutput = document.getElementById('elevation-output');
-    const seismicRiskOutput = document.getElementById('seismic-risk-output');
-    const coastalOutput = document.getElementById('coastal-output');
-
-    const mapEl = document.getElementById('map');
-    const orbitalCanvasEl = document.getElementById('orbital-canvas');
-
+    const statusBadge = missionControlSection.querySelector('#simulation-status');
+    const defenseButton = missionControlSection.querySelector('#defend-earth-button');
+    const downloadBriefingButton = missionControlSection.querySelector('#download-briefing-button');
+    const form = missionControlSection.querySelector('#impact-form');
     if (!form || !defenseButton) {
-        console.warn('Mission control layout missing required elements. Aborting initialisation.');
-    } else {
-        const impactViz = mapEl ? new ImpactViz('map') : null;
-        const orbitalViz = orbitalCanvasEl ? new OrbitalViz('orbital-canvas') : null;
+        return;
+    }
 
-        const defenseMode = countdownEl && messageEl
-            ? new DefenseMode({
-                countdownEl,
-                messageEl,
-                onLockInputs: () => {
-                    if (diameterInput) diameterInput.disabled = true;
-                    if (velocityInput) velocityInput.disabled = true;
-                    defenseButton.textContent = 'Cancel Defense';
-                },
-                onUnlockInputs: () => {
-                    if (diameterInput) diameterInput.disabled = false;
-                    if (velocityInput) velocityInput.disabled = false;
-                    defenseButton.textContent = 'Defend Earth Mode';
-                },
-                onExpire: () => {
-                    defenseButton.textContent = 'Defend Earth Mode';
-                },
-            })
-            : null;
+    const asteroidSelect = missionControlSection.querySelector('#asteroid-select');
+    const diameterInput = missionControlSection.querySelector('#diameter_m');
+    const velocityInput = missionControlSection.querySelector('#velocity_kms');
+    const deltaVInput = missionControlSection.querySelector('#deflection_delta_v');
+    const diameterOutput = missionControlSection.querySelector('#diameter-output');
+    const velocityOutput = missionControlSection.querySelector('#velocity-output');
+    const deltaVOutput = missionControlSection.querySelector('#delta-v-output');
+    const messageEl = missionControlSection.querySelector('#defense-message');
+    const defenseCountdown = missionControlSection.querySelector('#defense-countdown');
+    const energyOutput = missionControlSection.querySelector('#energy-output');
+    const craterOutput = missionControlSection.querySelector('#crater-output');
+    const seismicOutput = missionControlSection.querySelector('#seismic-output');
+    const moidOutput = missionControlSection.querySelector('#moid-output');
+    const elevationOutput = missionControlSection.querySelector('#elevation-output');
+    const seismicRiskOutput = missionControlSection.querySelector('#seismic-risk-output');
+    const coastalOutput = missionControlSection.querySelector('#coastal-output');
+    const neoNameEl = missionControlSection.querySelector('#neo-name');
+    const neoDesignationEl = missionControlSection.querySelector('#neo-designation');
+    const neoVelocityEl = missionControlSection.querySelector('#neo-velocity');
+    const neoDiameterEl = missionControlSection.querySelector('#neo-diameter');
+    const neoMagnitudeEl = missionControlSection.querySelector('#neo-magnitude');
+    const neoMoidEl = missionControlSection.querySelector('#neo-moid');
 
-        let lastSimulationData = null;
-        let pendingSimulationHandle = null;
+    const impactViz = missionControlSection.querySelector('#map') ? new ImpactViz('map') : null;
+    const orbitalCanvas = document.getElementById('orbital-canvas');
+    const orbitalViz = orbitalCanvas ? new OrbitalViz('orbital-canvas') : null;
+
+    const interactiveControls = [diameterInput, velocityInput, asteroidSelect].filter(Boolean);
+    const toggleControls = (disabled) => {
+        interactiveControls.forEach((control) => {
+            control.disabled = disabled;
+        });
+        missionControlSection.classList.toggle('defense-locked', disabled);
+    };
+
+    const updateDefenseButtonState = (isActive) => {
+        if (!defenseButton) return;
+        defenseButton.textContent = isActive ? 'Abort Defense Mode' : 'Defend Earth Mode';
+        defenseButton.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    };
+
+    const lockInputs = () => {
+        toggleControls(true);
+        updateDefenseButtonState(true);
+    };
+
+    const unlockInputs = () => {
+        toggleControls(false);
+        updateDefenseButtonState(false);
+    };
+
+    unlockInputs();
+
+    const defenseMode = defenseButton && defenseCountdown && messageEl
+        ? new DefenseMode({
+            countdownEl: defenseCountdown,
+            messageEl,
+            onLockInputs: lockInputs,
+            onUnlockInputs: unlockInputs,
+            onExpire: () => runSimulation({}, { skipDefenseCheck: true }),
+        })
+        : null;
+
+    let lastSimulationData = null;
+    let pendingSimulationHandle = null;
 
         function setStatus(message, { isBusy = false } = {}) {
             if (!statusBadge) return;
@@ -301,7 +310,7 @@ if (!missionRoot) {
         function resetDefenseStateUI() {
             if (!defenseMode || !messageEl) return;
             defenseMode.cancel();
-            defenseButton.textContent = 'Defend Earth Mode';
+            updateDefenseButtonState(false);
             messageEl.classList.remove('visible', 'defense-success', 'defense-failure');
             messageEl.textContent = '';
         }
@@ -509,6 +518,41 @@ if (!missionRoot) {
             }, { applyNeoDefaults: true });
         });
 
+        if (downloadBriefingButton) {
+            downloadBriefingButton.addEventListener('click', async () => {
+                if (downloadBriefingButton.disabled) return;
+                try {
+                    downloadBriefingButton.disabled = true;
+                    setStatus('Preparing briefing…', { isBusy: true });
+                    const payload = collectPayload();
+                    const response = await fetch('/api/export/scenario', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+                    if (!response.ok) {
+                        throw new Error(`Scenario export failed: ${response.status}`);
+                    }
+                    const blob = await response.blob();
+                    const filename = `astroshield_${payload.asteroid_id || 'scenario'}.pptx`;
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    setStatus('Briefing downloaded', { isBusy: false });
+                } catch (error) {
+                    console.error('Briefing export failed', error);
+                    setStatus('Briefing unavailable', { isBusy: false });
+                } finally {
+                    downloadBriefingButton.disabled = false;
+                }
+            });
+        }
+
         defenseButton.addEventListener('click', async () => {
             if (!defenseMode) return;
             if (defenseMode.isActive()) {
@@ -610,5 +654,10 @@ if (!missionRoot) {
                 asteroidSelect.disabled = false;
             }
         }
-    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMissionControl, { once: true });
+} else {
+    initMissionControl();
 }

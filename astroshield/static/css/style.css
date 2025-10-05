@@ -327,6 +327,7 @@ body::after {
     color: var(--accent-secondary);
 }
 
+
 .pillars-section {
     background: rgba(9, 16, 30, 0.88);
     border: 1px solid rgba(46, 229, 255, 0.24);
@@ -477,6 +478,12 @@ body::after {
     gap: 0.75rem;
 }
 
+.mission-control-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
 button,
 .primary-button,
 .ghost-button {
@@ -531,6 +538,13 @@ select:focus {
     align-items: center;
     justify-content: center;
     text-decoration: none;
+}
+
+.ghost-button[aria-pressed="true"] {
+    background: rgba(46, 229, 255, 0.16);
+    color: var(--bg-deep-space);
+    border-color: var(--accent-secondary);
+    box-shadow: 0 0 0 2px rgba(46, 229, 255, 0.25);
 }
 
 .auto-status {
